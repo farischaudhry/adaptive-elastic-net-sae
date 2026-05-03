@@ -1,9 +1,9 @@
-# Polyhedral Interventions for Sparse Autoencoders
+# Feature Starvation as Geometric Instability in Sparse Autoencoders
 
-This repository contains two aligned experiment tracks:
+This repository contains two experiment tracks:
 
 - Synthetic experiments for controlled mechanistic analysis.
-- LLM activation experiments which use a model and dataset from Hugging Face directly.
+- LLM activation experiments which use a model, tokenizer, and dataset from Hugging Face directly.
 
 ## Setting up
 
@@ -11,6 +11,44 @@ This repository contains two aligned experiment tracks:
 pip install uv
 uv sync
 uv run wandb login
+uv run hf auth login
+```
+
+## Cloud GPU setup (RunPod)
+
+Tested on the RunPod image `runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404`. 
+In this case a seperate venv should be used since the uv configuration is for torch 2.4.
+
+```bash
+cd /workspace
+export UV_CACHE_DIR="/workspace/.uv_cache"
+pip install uv
+
+apt-get update && apt-get install -y tmux
+
+git clone https://github.com/farischaudhry/adaptive-elastic-sae.git
+cd adaptive-elastic-sae/
+
+# 1. Create a dedicated cloud env
+uv venv --python 3.12 .venv-llama
+
+# 2. Install torch first in that env
+uv pip install --python .venv-llama/bin/python --index-strategy unsafe-best-match torch==2.8.0
+
+# 3. Install flash-attn without build isolation
+uv pip install --python .venv-llama/bin/python --index-strategy unsafe-best-match --no-build-isolation flash-attn==2.8.3
+
+# 4. Install the rest from requirements
+uv pip install --python .venv-llama/bin/python --index-strategy unsafe-best-match -r ./requirements-llama.txt
+
+# 5. Activate and login
+source .venv-llama/bin/activate
+wandb login
+hf auth login
+
+# Example for LLama8B:
+tmux new -s llama8b_test
+CUDA_VISIBLE_DEVICES=0 PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True python scripts/run_llm.py --config configs/llama8b/llama8b_test.yaml --use-wandb
 ```
 
 ## Project Structure
@@ -18,10 +56,11 @@ uv run wandb login
 ```
 ├── configs/
 │   ├── spiked/
+│   │   └── spiked_model_sweep.yaml
 │   ├── pythia70m/
-│   │   └── llm_pythia70m_test.yaml
+│   │   └── pythia70m_test.yaml
 │   └── llama8b/
-│       └── llm_llama8b_test.yaml
+│       └── llama8b_test.yaml
 ├── scripts/
 │   ├── run_spiked.py
 │   └── run_llm.py
@@ -47,21 +86,15 @@ uv run wandb login
 └── README.md
 ```
 
-## Run Synthetic Experiment
+## Run Synthetic Experiment (on uv)
 
-Main experiment:
-
-```
-uv run scripts/run_spiked.py --config configs/spiked_model.yaml --use-wandb
-```
-
-Regularization ablation:
+Sweep experiment:
 
 ```
-uv run scripts/run_spiked.py --config configs/spiked_model_regularization_ablation.yaml --use-wandb
+uv run scripts/run_spiked.py --config configs/spiked/spiked_model_sweep.yaml --use-wandb
 ```
 
-## Run LLM Experiments
+## Run LLM Experiments (on uv)
 
 Pythia-70M test pattern:
 
