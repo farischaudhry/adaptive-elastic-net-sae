@@ -119,3 +119,11 @@ git clone https://huggingface.co/farischaudhry/adaptive-elastic-net-sae
 cd adaptive-elastic-net-sae
 git lfs pull
 ```
+
+## Compute summary
+
+Note: runs often shared a GPU. When x2 GPUs were used, this typically meant two single-GPU jobs (one per device), not multi-GPU data-parallel training for a single run.
+
+- Llama-8B (aen-sae-llm-llama8b): NVIDIA H200 x2 (regularization runs), NVIDIA RTX PRO 6000 Blackwell Server Edition x1 (TopK runs). Total compute: 18 days.
+- Pythia-70M (aen-sae-llm-pythia70m): NVIDIA L40S x1. Total compute: 14 days.
+- Spiked model (aen-sae-mechanistic): NVIDIA RTX PRO 6000 Blackwell Server Edition x1. Total compute: 3 days.
