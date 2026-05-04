@@ -14,7 +14,7 @@ uv run wandb login
 uv run hf auth login
 ```
 
-## Cloud GPU setup (RunPod)
+## Cloud GPU setup ([RunPod](https://www.runpod.io))
 
 Tested on the RunPod image `runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404`. 
 In this case a seperate venv should be used since the uv configuration is for torch 2.4.
