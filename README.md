@@ -107,3 +107,15 @@ Llama 3.1 8B test pattern:
 ```bash
 uv run scripts/run_llm.py --config configs/llama8b/llama8b_test.yaml --use-wandb
 ```
+
+## Data and checkpoints (HF Hub)
+
+Large artifacts (checkpoints and W&B history CSVs) are stored in the Hugging Face
+model repo. Use Git LFS to pull them locally:
+
+```bash
+git lfs install
+git clone https://huggingface.co/farischaudhry/adaptive-elastic-net-sae
+cd adaptive-elastic-net-sae
+git lfs pull
+```
