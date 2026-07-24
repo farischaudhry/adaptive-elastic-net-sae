@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from typing import Any
 
+import numpy as np
 import torch
+from scipy.optimize import linear_sum_assignment
 
 
 def dead_neurons_pct(max_activations: torch.Tensor, eps: float = 1e-12) -> float:
@@ -425,3 +427,66 @@ def feature_utilization_summary(
     metrics[f"{prefix}/gini"] = float(gini.item())
 
     return metrics
+
+
+def compute_synthetic_recovery_metrics(
+    d_learned: torch.Tensor,  # [n_dim, d_dict] or [d_dict, n_dim]
+    d_star: torch.Tensor,  # [n_dim, d_dict]
+    h_pred: torch.Tensor,  # [batch_size, d_dict]
+    h_star: torch.Tensor,  # [batch_size, d_dict]
+    eps: float = 1e-6,
+) -> dict[str, float]:
+    """
+    Computes dictionary error d(D, D*) (Cosine and Frobenius), 
+    code recovery error ||h - h*||_2, and support recovery (F1 score and Jaccard similarity).
+    """
+    # Ensure d_learned and d_star are [n_dim, d_dict]
+    if d_learned.shape[0] != d_star.shape[0]:
+        d_learned = d_learned.T
+        
+    # Normalize columns
+    d_learned_norm = d_learned / (torch.norm(d_learned, dim=0, keepdim=True) + eps)
+    d_star_norm = d_star / (torch.norm(d_star, dim=0, keepdim=True) + eps)
+
+    # Dictionary Error d(D, D*) (Cosine and Frobenius)
+    # Compute pairwise absolute cosine similarity matrix C: [d_dict, d_dict]
+    C = torch.abs(d_learned_norm.T @ d_star_norm).detach().cpu().numpy()
+    cost_matrix = 1.0 - C
+    learned_idx, star_idx = linear_sum_assignment(cost_matrix)
+    # Dictionary Error d(D, D*)
+    # Average cosine distance between matched atoms
+    matched_cosines = C[learned_idx, star_idx]
+    dictionary_error_cosine = 1.0 - float(np.mean(matched_cosines))
+    # Frobenius Error on aligned normalized dictionaries
+    d_learned_norm_aligned = torch.zeros_like(d_learned_norm)
+    d_learned_norm_aligned[:, star_idx] = d_learned_norm[:, learned_idx]
+    dictionary_error_frobenius = torch.norm(d_learned_norm_aligned - d_star_norm, p='fro').item()
+    
+    # Code Recovery Error ||h_pred_aligned - h_star||_2
+    h_pred_aligned = torch.zeros_like(h_pred)
+    h_pred_aligned[:, star_idx] = h_pred[:, learned_idx]
+    code_recovery_mse = torch.mean((h_pred_aligned - h_star) ** 2).item()
+    code_recovery_l2_norm = torch.mean(torch.norm(h_pred_aligned - h_star, dim=1)).item()
+
+    # Support Recovery Metrics (Precision, Recall, F1, Jaccard)
+    pred_active = (h_pred_aligned > eps)
+    star_active = (h_star > eps)
+    tp = (pred_active & star_active).sum().float().item()
+    fp = (pred_active & ~star_active).sum().float().item()
+    fn = (~pred_active & star_active).sum().float().item()
+    precision = tp / (tp + fp + eps)
+    recall = tp / (tp + fn + eps)
+    f1_score = 2 * precision * recall / (precision + recall + eps)
+    # Jaccard Similarity (Intersection over Union)
+    jaccard_similarity = tp / (tp + fp + fn + eps)
+
+    return {
+        "dictionary_error_cosine": dictionary_error_cosine,
+        "dictionary_error_frobenius": dictionary_error_frobenius,
+        "code_recovery_mse": code_recovery_mse,
+        "code_recovery_l2": code_recovery_l2_norm,
+        "support_precision": precision,
+        "support_recall": recall,
+        "support_f1_score": f1_score,
+        "support_jaccard_similarity": jaccard_similarity,
+    }

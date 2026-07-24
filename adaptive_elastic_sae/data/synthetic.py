@@ -67,6 +67,11 @@ class SpikedDataGenerator:
         # Ground truth dictionary reused over all samples.
         self.D = self._generate_correlated_dictionary()
 
+    @property
+    def true_dictionary(self) -> torch.Tensor:
+        """Return the ground truth dictionary D."""
+        return self.D
+
     def _randn(self, *shape: int) -> torch.Tensor:
         return torch.randn(
             *shape,

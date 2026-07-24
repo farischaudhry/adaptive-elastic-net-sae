@@ -12,6 +12,7 @@ from adaptive_elastic_sae.training.metrics import (
     activation_effective_sample_size,
     active_gram_spectrum,
     compute_cross_leverage,
+    compute_synthetic_recovery_metrics,
     dead_neuron_recovery_rate,
     dead_neurons_pct,
     explained_variance,
@@ -45,10 +46,12 @@ class SAETrainer:
         model: BaseSAE,
         config: TrainerConfig,
         batch_provider: BatchProvider,
+        generator: Any | None = None,
     ) -> None:
         self.model = model
         self.config = config
         self.batch_provider = batch_provider
+        self.generator = generator
         self.device = torch.device(config.device)
         self.model.to(self.device)
 
@@ -71,7 +74,10 @@ class SAETrainer:
     ) -> SAETrainer:
         """Construct trainer using synthetic generator adapter."""
         return cls(
-            model=model, config=config, batch_provider=SyntheticBatchProvider(generator)
+            model=model,
+            config=config,
+            batch_provider=SyntheticBatchProvider(generator),
+            generator=generator,
         )
 
     def train(
@@ -130,6 +136,7 @@ class SAETrainer:
                 dtype=self.config.dtype,
             )
             x = batch["x"]
+            h_star = batch.get("h_true")  # Ground truth sparse code if available
 
             # Real FLOPs profile for one full training step (forward+loss+backward).
             if step == 0:
@@ -182,7 +189,7 @@ class SAETrainer:
 
             # Periodic logging
             if (step + 1) % self.config.log_interval == 0:
-                metrics = self._compute_metrics(x, x_hat, h)
+                metrics = self._compute_metrics(x, x_hat, h, h_star=h_star)
                 metrics["step"] = step + 1
                 metrics["loss"] = loss.item()
                 metrics.update(
@@ -238,81 +245,59 @@ class SAETrainer:
         x: torch.Tensor,
         x_hat: torch.Tensor,
         h: torch.Tensor,
+        h_star: torch.Tensor | None = None,
     ) -> dict[str, float]:
         """Compute all diagnostic metrics for the current batch."""
         metrics = {}
 
-        # Dead neurons
-        metrics["dead_neurons_pct"] = dead_neurons_pct(
-            self.max_activations,
-            eps=1e-12,
-        )
-
-        # Sparsity
+        # Dead neurons & Sparsity
+        metrics["dead_neurons_pct"] = dead_neurons_pct(self.max_activations, eps=1e-12)
         metrics["l0_active_features"] = l0_active_features(h, eps=1e-12)
         metrics["l0_vs_l1_ratio"] = l0_vs_l1_ratio(h, eps=1e-12)
 
-        # Reconstruction
+        # Reconstruction & Shrinkage
         metrics["explained_variance"] = explained_variance(x, x_hat, eps=1e-12)
+        metrics["feature_shrinkage_ratio"] = feature_shrinkage_ratio(x, x_hat, eps=1e-12)
 
-        # Shrinkage
-        metrics["feature_shrinkage_ratio"] = feature_shrinkage_ratio(
-            x,
-            x_hat,
-            eps=1e-12,
-        )
-
-        # For AdaptiveLasso and AdaptiveElasticNet
-        # Adaptive weight metrics (if model has EMA-based adaptive weighting)
+        # Adaptive-weight metrics
         if hasattr(self.model, "ema_abs_activations"):
-            mean_abs_act = self.model.ema_abs_activations
-            metrics["activation_effective_sample_size"] = (
-                activation_effective_sample_size(
-                    mean_abs_act,
-                    eps=1e-12,
-                )
+            metrics["activation_effective_sample_size"] = activation_effective_sample_size(
+                self.model.ema_abs_activations, eps=1e-12
             )
         if hasattr(self.model, "get_adaptive_weights"):
             try:
                 weights = self.model.get_adaptive_weights()
                 metrics["weight_bimodality_ratio"] = weight_bimodality_ratio(
-                    weights,
-                    delta_sig=0.1,
-                    delta_noise=5.0,
-                    eps=1e-12,
+                    weights, delta_sig=0.1, delta_noise=5.0, eps=1e-12
                 )
             except Exception:
-                pass  # Skip if method fails or not applicable
+                pass
 
-        # Geometric: decoder coherence and conditioning.
-        # Use the busiest sample in the batch as a worst-case local active set estimator.
+        # Ground Truth Recovery Metrics (D*, h*)
+        if self.generator is not None and hasattr(self.generator, "true_dictionary") and h_star is not None:
+            try:
+                d_star = self.generator.true_dictionary
+                d_learned = self.model.decoder.weight.data
+                rec_metrics = compute_synthetic_recovery_metrics(
+                    d_learned=d_learned,
+                    d_star=d_star,
+                    h_pred=h,
+                    h_star=h_star,
+                )
+                metrics.update(rec_metrics)
+            except Exception as e:
+                logger.warning(f"Failed to compute synthetic recovery metrics: {e}")
+
+        # Geometric & Conditioning
         busiest_idx = (h > 1e-12).sum(dim=1).argmax()
         local_active_mask = h[busiest_idx] > 1e-12
         if local_active_mask.any():
             decoder = self.model.decoder.weight.data
-
-            metrics["interaction_leakage_frobenius"] = (
-                interaction_leakage_frobenius_approx(
-                    decoder,
-                    local_active_mask,
-                )
+            metrics["interaction_leakage_frobenius"] = interaction_leakage_frobenius_approx(
+                decoder, local_active_mask
             )
-
-            metrics.update(
-                compute_cross_leverage(
-                    decoder,
-                    local_active_mask,
-                    k_top=5,
-                )
-            )
-
-            metrics.update(
-                active_gram_spectrum(
-                    decoder,
-                    local_active_mask,
-                )
-            )
-
+            metrics.update(compute_cross_leverage(decoder, local_active_mask, k_top=5))
+            metrics.update(active_gram_spectrum(decoder, local_active_mask))
             metrics.update(dictionary_coherence_summary(decoder, eps=1e-12))
 
         return metrics
