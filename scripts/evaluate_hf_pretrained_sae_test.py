@@ -1,6 +1,7 @@
 import sys
 import random
 from pathlib import Path
+import shutil
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -19,7 +20,7 @@ from adaptive_elastic_sae.training.metrics import (
 
 
 def load_andyrdt_topk_directly(trainer_id: str, k: int, device: str) -> TopKSAE:
-    print(f"Downloading weights for {trainer_id} directly from Hugging Face.")
+    print(f"Downloading weights for {trainer_id} directly from Hugging Face...")
     file_path = hf_hub_download(
         repo_id="andyrdt/saes-llama-3.1-8b-instruct",
         filename=f"resid_post_layer_15/{trainer_id}/ae.pt"
@@ -52,7 +53,7 @@ def evaluate_table_metrics_only(seed: int = 0):
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    print("Initializing LLM Token Streamer (For data stream only).")
+    print("Initializing LLM Token Streamer.")
     stream_cfg = LLMStreamConfig(
         tl_model_name="meta-llama/Llama-3.1-8B",
         hf_tokenizer_name="meta-llama/Llama-3.1-8B",
@@ -63,7 +64,7 @@ def evaluate_table_metrics_only(seed: int = 0):
         lm_batch_size=32,
         streaming=True,
         skip_docs=0,
-        take_docs=10000,
+        take_docs=2000,
         loop_dataset=False,
         model_dtype="bfloat16",
         device=device,
@@ -89,12 +90,12 @@ def evaluate_table_metrics_only(seed: int = 0):
         val_provider = LLMActivationBatchProvider(base_streamer)
 
         mses, l0s, exp_vars = [], [], []
-        max_activations = torch.zeros(sae_model.d_dict, device=device)
+        max_activations = torch.zeros(sae_model.d_dict, device=device, dtype=torch.bfloat16)
+        window_dead_pcts = []
 
         batch_idx = 0
         while True:
             try:
-                # Pull raw residual stream activations directly from the streamer
                 batch = val_provider.next_batch(batch_size=512, device=device, dtype=torch.bfloat16)
             except StopIteration:
                 break
@@ -103,7 +104,6 @@ def evaluate_table_metrics_only(seed: int = 0):
             with torch.no_grad():
                 x_hat, h = sae_model(x)
 
-                # Collect exact table metrics
                 mse = ((x - x_hat) ** 2).mean().item()
                 active_l0 = (h.abs() > 1e-12).sum(dim=1).float().mean().item()
                 ev = explained_variance(x, x_hat)
@@ -112,21 +112,31 @@ def evaluate_table_metrics_only(seed: int = 0):
                 l0s.append(active_l0)
                 exp_vars.append(ev)
                 
+                # Accumulate max activations over windows matching training config
                 max_activations = torch.maximum(max_activations, h.abs().amax(dim=0))
                 
             batch_idx += 1
-            if batch_idx % 20 == 0:
-                print(f"Processed {batch_idx * 512} tokens.")
+            
+            # Every 100 batches (matching training's window concept), record dead window % and reset
+            if batch_idx % 100 == 0:
+                window_dead = dead_neurons_pct(max_activations, eps=1e-12)
+                window_dead_pcts.append(window_dead)
+                max_activations.zero_()
+                print(f"Processed {batch_idx * 512} tokens (Window dead %: {window_dead:.2f}%)...")
+
+        # Fallback if total batches < 100
+        if not window_dead_pcts:
+            window_dead_pcts.append(dead_neurons_pct(max_activations, eps=1e-12))
+        final_dead_pct = sum(window_dead_pcts) / len(window_dead_pcts)
 
         # Coherence metrics from decoder weights
         decoder_weights = sae_model.decoder.weight.data
         coh_stats = dictionary_coherence_summary(decoder_weights)
 
-        # Final aggregated row values matching your table columns
         table_row = {
             "Target L0": target_k,
             "Achieved L0": sum(l0s) / len(l0s) if l0s else 0.0,
-            "Dead Features %": dead_neurons_pct(max_activations, eps=1e-12),
+            "Dead Features %": final_dead_pct,
             "Explained Variance": sum(exp_vars) / len(exp_vars) if exp_vars else 0.0,
             "MSE": sum(mses) / len(mses) if mses else 0.0,
             "p50 Coherence": coh_stats.get("dictionary_coherence_nn/p50", 0.0),
@@ -148,6 +158,12 @@ def evaluate_table_metrics_only(seed: int = 0):
             f.write(f"\nResults for {trainer_id} (Target L0 ≈ {target_k}):\n")
             for k, v in table_row.items():
                 f.write(f"  {k}: {v}\n")
+
+        # Cleanup downloaded weights cache for this variant to save disk space
+        cache_dir = Path("/workspace/.cache/huggingface/hub/models--andyrdt--saes-llama-3.1-8b-instruct")
+        if cache_dir.exists():
+            shutil.rmtree(cache_dir, ignore_errors=True)
+            print(f"Cleared Hugging Face cache for {trainer_id} to free disk space.")
 
 
 if __name__ == "__main__":
