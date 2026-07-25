@@ -81,7 +81,7 @@ def evaluate_pretrained_baseline_full(sae_ids: list[str], seed: int = 0) -> None
 
         # 2. Load SAE
         sae_model, _, _ = SAE.from_pretrained(
-            release="andyrdt/saes-llama-3.1-8b-instruct", 
+            release="llama-3.1-8b-instruct-andyrdt", 
             sae_id=sae_id, 
             device=device
         )
