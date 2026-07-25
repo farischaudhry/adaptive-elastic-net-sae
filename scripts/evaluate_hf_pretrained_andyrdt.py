@@ -20,7 +20,7 @@ from adaptive_elastic_sae.training.metrics import (
 
 
 def load_andyrdt_topk_directly(trainer_id: str, k: int, device: str) -> TopKSAE:
-    print(f"Downloading weights for {trainer_id} directly from Hugging Face...")
+    print(f"Downloading weights for {trainer_id} from Hugging Face.")
     file_path = hf_hub_download(
         repo_id="andyrdt/saes-llama-3.1-8b-instruct",
         filename=f"resid_post_layer_15/{trainer_id}/ae.pt"
@@ -122,7 +122,7 @@ def evaluate_table_metrics_only(seed: int = 0):
                 window_dead = dead_neurons_pct(max_activations, eps=1e-12)
                 window_dead_pcts.append(window_dead)
                 max_activations.zero_()
-                print(f"Processed {batch_idx * 512} tokens (Window dead %: {window_dead:.2f}%)...")
+                print(f"Processed {batch_idx * 512} tokens (Window dead %: {window_dead:.2f}%).")
 
         # Fallback if total batches < 100
         if not window_dead_pcts:
