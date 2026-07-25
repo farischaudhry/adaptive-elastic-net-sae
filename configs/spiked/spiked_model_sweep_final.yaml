@@ -23,11 +23,11 @@ training:
 models:
   vanilla_l1:
     class_name: VanillaSAE
-    lambda_1: [0.01, 0.005, 0.001, 0.0005]
+    lambda_1: [0.01, 0.005, 0.003, 0.002, 0.0015, 0.001, 0.0005]
 
   elastic_net:
     class_name: ElasticNetSAE
-    lambda_1: [0.01, 0.005, 0.001]
+    lambda_1: [0.01, 0.005, 0.002, 0.0015, 0.001]
     lambda_2: [0.001, 0.0005, 0.0001]
 
   adaptive_lasso:
