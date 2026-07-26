@@ -23,7 +23,7 @@ def load_user_topk(k: int, device: str) -> TopKSAE:
         repo_id="farischaudhry/adaptive-elastic-net-sae",
         filename=filename
     )
-    checkpoint = torch.load(file_path, map_location=device, weight_only=False)
+    checkpoint = torch.load(file_path, map_location=device, weights_only=False)
     model = TopKSAE(n_dim=4096, d_dict=131072, k=k, device=device, dtype=torch.bfloat16)
     model.load_state_dict(checkpoint["model_state_dict"])
     return model
@@ -38,7 +38,7 @@ def load_user_aen(k: int, device: str) -> AdaptiveElasticNetSAE:
         repo_id="farischaudhry/adaptive-elastic-net-sae",
         filename=filename
     )
-    checkpoint = torch.load(file_path, map_location=device, weight_only=False)
+    checkpoint = torch.load(file_path, map_location=device, weights_only=False)
     model = AdaptiveElasticNetSAE(
         n_dim=4096, 
         d_dict=131072, 
