@@ -163,4 +163,4 @@ def find_bidirectional_feature_contexts(k: int = 32, num_scan_batches: int = 500
 
 
 if __name__ == "__main__":
-    find_bidirectional_feature_contexts(k=32, num_scan_batches=500, num_context_batches=500)
+    find_bidirectional_feature_contexts(k=32, num_scan_batches=1000, num_context_batches=1000)
