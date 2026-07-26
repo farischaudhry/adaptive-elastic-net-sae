@@ -211,4 +211,4 @@ def find_revived_feature_contexts(k: int = 32, num_scan_batches: int = 50, num_c
 
 
 if __name__ == "__main__":
-    find_revived_feature_contexts(k=32, num_scan_batches=50, num_context_batches=100)
+    find_revived_feature_contexts(k=32, num_scan_batches=500, num_context_batches=500)
