@@ -18,7 +18,7 @@ def load_user_topk(k: int, device: str) -> TopKSAE:
     filename = f"checkpoints/llama8b/topk/seed0/k{k}_llm-topk_baseline_sweep{sweep_map[k]}-seed0.pt"
     print(f"Downloading Vanilla Top-K (k={k}) from Hugging Face.")
     file_path = hf_hub_download(repo_id="farischaudhry/adaptive-elastic-net-sae", filename=filename)
-    checkpoint = torch.load(file_path, map_location=device)
+    checkpoint = torch.load(file_path, map_location=device, weights_only=False)
     model = TopKSAE(n_dim=4096, d_dict=131072, k=k, device=device, dtype=torch.bfloat16)
     model.load_state_dict(checkpoint["model_state_dict"])
     return model
@@ -28,7 +28,7 @@ def load_user_aen(k: int, device: str) -> AdaptiveElasticNetSAE:
     filename = f"checkpoints/llama8b/regularization/seed0/adaptive_elastic_net/lambda1_{lambda_map[k]}_lambda2_0p0001_gamma_0p5.pt"
     print(f"Downloading AEN-SAE (k={k}, lambda1={lambda_map[k]}) from Hugging Face.")
     file_path = hf_hub_download(repo_id="farischaudhry/adaptive-elastic-net-sae", filename=filename)
-    checkpoint = torch.load(file_path, map_location=device)
+    checkpoint = torch.load(file_path, map_location=device, weights_only=False)
     model = AdaptiveElasticNetSAE(n_dim=4096, d_dict=131072, device=device, dtype=torch.bfloat16)
     model.load_state_dict(checkpoint["model_state_dict"])
     return model
