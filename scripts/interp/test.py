@@ -50,11 +50,13 @@ class TargetedCausalAuditor:
     def audit_triplet(self, fid, prompt, target_token_str):
         # 0. Prep Tokens
         tokens = self.tokenizer.encode(prompt, return_tensors="pt").to(self.device)
-        # We target the effect on the NEXT token
         target_id = self.tokenizer.encode(target_token_str, add_special_tokens=False)[-1]
         
+        # Use a list to "capture" the value from inside the hook
+        captured_val = []
+
         # 1. Clean Pass
-        clean_logits = self.model(tokens) # [1, seq, vocab]
+        clean_logits = self.model(tokens)
         clean_lp = F.log_softmax(clean_logits[0, -1], dim=-1)
 
         # 2. Targeted Ablation Hook
@@ -67,25 +69,27 @@ class TargetedCausalAuditor:
             # Center and Encode
             h = self.sae.encode(xn)
             
-            # Subtract the contribution of FID at the LAST position
-            # Decoder weight for FID: weights shape is [4096, 131072]
-            W_dec_col = self.sae.decoder.weight[:, fid]
-            
-            # Reconstruction contribution = activation * direction
-            # h shape is [batch, seq, d_dict]
+            # CAPTURE the activation value for the report
+            # (only the last token in the sequence)
             val = h[0, -1, fid]
+            captured_val.append(val.item())
+            
+            # Decoder weight for FID
+            W_dec_col = self.sae.decoder.weight[:, fid]
             contrib = val.unsqueeze(-1) * W_dec_col
             
             # Ablate: Remove this specific feature's signal
-            patched_act = xn
+            patched_act = xn.clone()
             patched_act[0, -1, :] -= contrib
             
-            # Return to original scale
-            return (patched_act * n).to(act.dtype), val
+            # IMPORTANT: Return ONLY the tensor
+            return (patched_act * n).to(act.dtype)
 
         # 3. Patched Pass
-        patched_logits, val = self.model.run_with_hooks(
-            tokens, fwd_hooks=[(self.hook_name, ablation_hook)]
+        # run_with_hooks returns ONLY the model logits (a Tensor)
+        patched_logits = self.model.run_with_hooks(
+            tokens, 
+            fwd_hooks=[(self.hook_name, ablation_hook)]
         )
         patch_lp = F.log_softmax(patched_logits[0, -1], dim=-1)
 
@@ -98,7 +102,7 @@ class TargetedCausalAuditor:
         avg_noise = np.mean(noise_shifts)
 
         return {
-            "val": val.item(),
+            "val": captured_val[0] if captured_val else 0.0,
             "drop": logit_drop,
             "noise": avg_noise,
             "ratio": logit_drop / (avg_noise + 1e-6)
