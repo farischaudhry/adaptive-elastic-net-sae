@@ -13,6 +13,7 @@ from adaptive_elastic_sae.saes.top_k import TopKSAE
 from adaptive_elastic_sae.saes.polyhedral import AdaptiveElasticNetSAE
 from adaptive_elastic_sae.data.llm_streamer import LLMStreamConfig, PythiaActivationStreamer, normalize_activations
 
+
 def load_user_topk(k: int, device: str) -> TopKSAE:
     sweep_map = {32: "000", 64: "001", 128: "002"}
     filename = f"checkpoints/llama8b/topk/seed0/k{k}_llm-topk_baseline_sweep{sweep_map[k]}-seed0.pt"
@@ -22,6 +23,7 @@ def load_user_topk(k: int, device: str) -> TopKSAE:
     model = TopKSAE(n_dim=4096, d_dict=131072, k=k, device=device, dtype=torch.bfloat16)
     model.load_state_dict(checkpoint["model_state_dict"])
     return model
+
 
 def load_user_aen(k: int, device: str) -> AdaptiveElasticNetSAE:
     lambda_map = {32: "0p002", 64: "0p001", 128: "0p00075"}
@@ -33,6 +35,7 @@ def load_user_aen(k: int, device: str) -> AdaptiveElasticNetSAE:
     model.load_state_dict(checkpoint["model_state_dict"])
     return model
 
+
 @torch.no_grad()
 def get_tokens_and_activations(streamer: PythiaActivationStreamer):
     tokens = streamer.next_token_batch() 
@@ -43,6 +46,7 @@ def get_tokens_and_activations(streamer: PythiaActivationStreamer):
     streamer.model.run_with_hooks(tokens, return_type=None, fwd_hooks=[(streamer.hook_name, _capture_hook)])
     norm_x = normalize_activations(captured, mode=streamer.cfg.activation_normalization, d_model=captured.shape[-1])
     return tokens, norm_x.to(dtype=torch.bfloat16)
+
 
 def find_bidirectional_feature_contexts(k: int = 32, num_scan_batches: int = 500, num_context_batches: int = 500):
     device = "cuda" if torch.cuda.is_available() else "cpu"
