@@ -7,7 +7,7 @@ import torch
 from tqdm import tqdm
 from huggingface_hub import hf_hub_download
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from adaptive_elastic_sae.saes.top_k import TopKSAE
 from adaptive_elastic_sae.saes.polyhedral import AdaptiveElasticNetSAE
