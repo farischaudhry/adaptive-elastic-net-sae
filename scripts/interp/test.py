@@ -2,7 +2,6 @@ import sys
 import torch
 import torch.nn.functional as F
 from pathlib import Path
-import numpy as np
 from huggingface_hub import hf_hub_download
 
 # Setup Pathing
@@ -35,10 +34,10 @@ def load_user_aen(k: int, device: str) -> AdaptiveElasticNetSAE:
     return model
 
 # =================================================================
-# 2. TARGETED CAUSAL AUDITOR
+# 2. GENERATIVE STEERING SUITE
 # =================================================================
 
-class TargetedCausalAuditor:
+class GenerativeSteerer:
     def __init__(self, streamer, sae):
         self.model = streamer.model
         self.tokenizer = streamer.tokenizer
@@ -46,70 +45,49 @@ class TargetedCausalAuditor:
         self.hook_name = streamer.hook_name
         self.device = sae.device
 
+    def get_top_tokens(self, probs, k=5):
+        """Helper to decode top probabilities."""
+        vals, idxs = torch.topk(probs, k=k)
+        return [f"'{self.tokenizer.decode([idx.item()])}' ({vals[i].item()*100:.1f}%)" for i, idx in enumerate(idxs)]
+
     @torch.no_grad()
-    def audit_context(self, fid, context_str, target_str):
-        tokens = self.tokenizer.encode(context_str, return_tensors="pt").to(self.device)
+    def steer_and_observe(self, fid, strength=80.0):
+        # We start with a completely neutral prompt to see the pure effect of the feature
+        prompt = " " 
+        tokens = self.tokenizer.encode(prompt, return_tensors="pt").to(self.device)
         
-        # 1. SCAN: Find where the feature fires in the full sentence
-        h_all = []
-        def capture_hook(act, hook):
-            n = act.norm(p=2, dim=-1, keepdim=True) / (act.shape[-1]**0.5)
-            xn = (act / n).to(self.sae.dtype)
-            h = self.sae.encode(xn)
-            h_all.append(h[0].cpu()) 
-            return act
-
-        self.model.run_with_hooks(tokens, fwd_hooks=[(self.hook_name, capture_hook)])
-        f_acts = h_all[0][:, fid] 
-        
-        # Find peak position (must not be the very last token in the string)
-        if f_acts[:-1].max() < 0.2:
-            return {"error": f"Inactive (Max: {f_acts.max():.2f})"}
-        
-        pos = torch.argmax(f_acts[:-1]).item()
-        act_val = f_acts[pos].item()
-        
-        # Determine the Ground Truth token ID for the token AFTER the peak
-        target_id = tokens[0, pos+1].item()
-        actual_target_str = self.tokenizer.decode([target_id])
-
-        # 2. ABLATE at 'pos'
-        def ablation_hook(act, hook):
-            n = act.norm(p=2, dim=-1, keepdim=True) / (act.shape[-1]**0.5)
-            xn = (act / n).to(self.sae.dtype)
-            h_inner = self.sae.encode(xn)
-            W_dec_col = self.sae.decoder.weight[:, fid]
-            contrib = h_inner[0, pos, fid].unsqueeze(-1) * W_dec_col
-            patched_act = xn.clone()
-            patched_act[0, pos, :] -= contrib
-            return (patched_act * n).to(act.dtype)
-
+        # 1. Baseline Predictions (No Steering)
         clean_logits = self.model(tokens)
-        patched_logits = self.model.run_with_hooks(tokens, fwd_hooks=[(self.hook_name, ablation_hook)])
-        
-        clean_lp = F.log_softmax(clean_logits[0, pos], dim=-1)
-        patch_lp = F.log_softmax(patched_logits[0, pos], dim=-1)
+        clean_probs = F.softmax(clean_logits[0, -1], dim=-1)
+        before_str = self.get_top_tokens(clean_probs)
 
-        # 3. METRICS
-        logit_drop = (clean_lp[target_id] - patch_lp[target_id]).item()
-        control_ids = torch.randint(0, self.tokenizer.vocab_size, (100,))
-        noise_shifts = [(clean_lp[cid] - patch_lp[cid]).abs().item() for cid in control_ids]
-        avg_noise = np.mean(noise_shifts)
+        # 2. Steering Hook
+        def steering_hook(act, hook):
+            # Normalize to SAE scale
+            n = act.norm(p=2, dim=-1, keepdim=True) / (act.shape[-1]**0.5)
+            xn = (act / n).to(self.sae.dtype)
+            
+            # INJECT: Add a high activation value in the direction of FID
+            # Decoder shape is [n_dim, d_dict] -> col fid is the concept direction
+            direction = self.sae.decoder.weight[:, fid]
+            xn[0, -1, :] += strength * direction
+            
+            return (xn * n).to(act.dtype)
 
-        return {
-            "peak_token": self.tokenizer.decode([tokens[0, pos]]),
-            "target_token": actual_target_str,
-            "val": act_val,
-            "drop": logit_drop,
-            "noise": avg_noise,
-            "ratio": logit_drop / (avg_noise + 1e-6)
-        }
+        # 3. Steered Predictions
+        steered_logits = self.model.run_with_hooks(
+            tokens, fwd_hooks=[(self.hook_name, steering_hook)]
+        )
+        steered_probs = F.softmax(steered_logits[0, -1], dim=-1)
+        after_str = self.get_top_tokens(steered_probs)
+
+        return {"before": before_str, "after": after_str}
 
 # =================================================================
 # 3. RUNTIME
 # =================================================================
 
-def run_causal_audit():
+def run_causal_sufficiency_audit():
     device = "cuda" if torch.cuda.is_available() else "cpu"
     
     stream_cfg = LLMStreamConfig(
@@ -123,52 +101,47 @@ def run_causal_audit():
     aen_model = load_user_aen(k=32, device=device).eval()
     topk_model = load_user_topk(k=32, device=device).eval()
 
-    # (FID, Full Context String, Target hint for logging)
-    aen_test_cases = [
-        (81,  "un collier blanc, je ne peux pas refuser. La brave", "refuser"),
-        (578, "MAP ) ; %01874- 611 880; www.robertos", "880"),
-        (972, "kalo korang nak try tgk..pg kat blog die", "try"),
-        (663, "RecorderConfig.getMaxStorageSize(); // Do something with max", "Do"),
-        (1081, "price); return this; } public APIRequestUpdate", "public"),
-        (1251, "empty line calls \\par (this one is already", "calls")
-    ]
-
-    topk_test_cases = [
-        (0,   "its magnetic flux: i(t ) = W.", "="),
-        (11,  "Nathan Randall - Video Game Analyst Nathan Randall", "Analyst"),
-        (30,  "Michael, Jr., and Michael , Sr., also received", "Sr"),
-        (147, "Feature Film $ 60 $48 Screenplay $ 50 $", "50"),
-        (247, "onboarding_completed: true, \" profile_photo\": \"https", "profile")
-    ]
-
-    print("\n--- Starting TARGETED CAUSAL AUDIT ---")
+    # Targets from our monosemantic audit
+    aen_targets = {
+        81: "French Negation (pas)",
+        578: "UK Phone Code (01766)",
+        972: "Malay colloquial (nak)",
+        663: "Code Comment (//)"
+    }
     
-    with open("targeted_causal_results_FINAL.txt", "w") as f:
-        f.write("TARGETED CAUSAL NECESSITY REPORT\n\n")
+    # Hub targets from TopK
+    topk_targets = {
+        11: "Compound Noun Hub",
+        247: "Syntax/Num Hub",
+        30: "Punctuation/Space Hub"
+    }
+
+    print("\n--- Starting CAUSAL SUFFICIENCY (Steering) AUDIT ---")
+    
+    with open("causal_steering_results.txt", "w") as f:
+        f.write("CAUSAL SUFFICIENCY REPORT: BEHAVIORAL CONTROL\n")
+        f.write("Injected +80.0 activation into a neutral space prompt.\n")
+        f.write("Goal: Prove AEN features are surgical semantic levers.\n\n")
 
         # AUDIT AEN
-        auditor_aen = TargetedCausalAuditor(streamer, aen_model)
+        steerer_aen = GenerativeSteerer(streamer, aen_model)
         f.write("--- AEN SPECIALIZED FEATURES ---\n")
-        for fid, context, hint in aen_test_cases:
-            res = auditor_aen.audit_context(fid, context, hint)
-            if "error" in res:
-                print(f"Skipping AEN #{fid}: {res['error']}")
-                continue
-            f.write(f"FID #{fid} | Peak Token: '{res['peak_token']}' | Target: '{res['target_token']}'\n")
-            f.write(f"  Act Val: {res['val']:.2f} | Logit Drop: {res['drop']:.2f} | Noise: {res['noise']:.4f} | RATIO: {res['ratio']:.1f}x\n\n")
-            print(f"Audited AEN #{fid} ('{res['peak_token']}'): Ratio {res['ratio']:.1f}x")
+        for fid, desc in aen_targets.items():
+            res = steerer_aen.steer_and_observe(fid)
+            f.write(f"FID #{fid} [{desc}]\n")
+            f.write(f"  TOP 5 BEFORE: {res['before']}\n")
+            f.write(f"  TOP 5 AFTER:  {res['after']}\n\n")
+            print(f"Audited AEN #{fid} ({desc})")
 
         # AUDIT TOPK
-        auditor_topk = TargetedCausalAuditor(streamer, topk_model)
+        steerer_topk = GenerativeSteerer(streamer, topk_model)
         f.write("\n--- TOPK HUB FEATURES ---\n")
-        for fid, context, hint in topk_test_cases:
-            res = auditor_topk.audit_context(fid, context, hint)
-            if "error" in res:
-                print(f"Skipping TopK #{fid}: {res['error']}")
-                continue
-            f.write(f"FID #{fid} | Peak Token: '{res['peak_token']}' | Target: '{res['target_token']}'\n")
-            f.write(f"  Act Val: {res['val']:.2f} | Logit Drop: {res['drop']:.2f} | Noise: {res['noise']:.4f} | RATIO: {res['ratio']:.1f}x\n\n")
-            print(f"Audited TopK #{fid} ('{res['peak_token']}'): Ratio {res['ratio']:.1f}x")
+        for fid, desc in topk_targets.items():
+            res = steerer_topk.steer_and_observe(fid)
+            f.write(f"FID #{fid} [{desc}]\n")
+            f.write(f"  TOP 5 BEFORE: {res['before']}\n")
+            f.write(f"  TOP 5 AFTER:  {res['after']}\n\n")
+            print(f"Audited TopK #{fid} ({desc})")
 
 if __name__ == "__main__":
-    run_causal_audit()
+    run_causal_sufficiency_audit()
