@@ -1,0 +1,67 @@
+experiment:
+  name: spiked_model
+  seeds: [0]
+
+data:
+  n_dim: 1024
+  d_dict: 8192
+  k_sparse: 32
+  noise_std: 0.0
+  allow_negative_codes: false
+  rho_values: [0.0, 0.9]
+
+training:
+  num_steps: 50_000
+  batch_size: 256
+  learning_rate: 1.0e-3
+  warmup_steps: 10_000
+  max_activations_window: 10_000
+  log_interval: 500
+  device: cuda
+  dtype: float32
+
+models:
+  vanilla_l1:
+    class_name: VanillaSAE
+    lambda_1: [0.01, 0.005, 0.003, 0.002, 0.0015, 0.001, 0.0005]
+
+  elastic_net:
+    class_name: ElasticNetSAE
+    lambda_1: [0.01, 0.005, 0.002, 0.0015, 0.001]
+    lambda_2: [0.001, 0.0005, 0.0001]
+
+  adaptive_lasso:
+    class_name: AdaptiveLassoSAE
+    lambda_1: [0.01, 0.005, 0.001]
+    gamma: [0.5, 1.0]
+    ema_beta: [0.999, 0.9999]
+    weight_min: 0.01
+    weight_max: 10.0
+    ref_k_top_pct: [0.05, 0.01]
+
+  adaptive_elastic_net:
+    class_name: AdaptiveElasticNetSAE
+    lambda_1: [0.01, 0.005, 0.001]
+    lambda_2: [0.001, 0.0005, 0.0001]
+    gamma: [0.5, 1.0]
+    ema_beta: [0.999, 0.9999]
+    weight_min: 0.01
+    weight_max: 10.0
+    ref_k_top_pct: [0.05, 0.01]
+
+  topk_baseline:
+    class_name: TopKSAE
+    k: [16, 32, 64, 128]
+
+wandb:
+  enabled: true
+  project: aen-sae-mechanistic-final-high-dim
+  entity: farischaudhry-imperial-college-london
+  tags:
+    - regularization-sweep
+    - topk-sweep
+    - spiked
+  run_tag_templates:
+    - "rho={rho:.2f}"
+    - "seed={seed}"
+    - "model={model_name}"
