@@ -140,7 +140,7 @@ class CausalAudit:
         return report
 
 
-def run_causal_comparison():
+def run_causal_comparison(num_examples_needed: int = 1, activation_threshold: float = 0.01):
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     stream_cfg = LLMStreamConfig(
@@ -151,7 +151,7 @@ def run_causal_comparison():
         seq_len=128,
         lm_batch_size=8,
         streaming=True,
-        take_docs=5000,
+        take_docs=20000,
         device=device,
         activation_normalization="per_token_l2"
     )
@@ -160,36 +160,101 @@ def run_causal_comparison():
     aen_model = load_user_aen(k=32, device=device).eval()
     topk_model = load_user_topk(k=32, device=device).eval()
 
-    # --- LIST TARGETS FROM QUALITATIVE ANALYSIS ---
     aen_targets = [578, 81, 972, 663]
     topk_targets = [247, 147, 30, 11]
+    
+    # Trackers
+    found_counts = {fid: 0 for fid in (aen_targets + topk_targets)}
+    reports = {fid: [] for fid in (aen_targets + topk_targets)}
+    
+    auditor_aen = CausalAudit(streamer, aen_model)
+    auditor_topk = CausalAudit(streamer, topk_model)
+
+    print(f"\n[Parallel Search] Looking for {aen_targets + topk_targets}")
+    print(f"Threshold: {activation_threshold} | Examples per feature: {num_examples_needed}")
+
+    batch_idx = 0
+    pbar = tqdm(desc="Scanning Tokens")
+    
+    while any(count < num_examples_needed for count in found_counts.values()):
+        batch_idx += 1
+        try:
+            tokens, x_norm = get_tokens_and_activations(streamer)
+        except StopIteration: break
+        
+        # 1. Get activations for both models once
+        with torch.no_grad():
+            _, h_aen = aen_model(x_norm)
+            _, h_topk = topk_model(x_norm)
+        
+        # 2. Check all targets in this batch
+        for fid in (aen_targets + topk_targets):
+            if found_counts[fid] >= num_examples_needed:
+                continue
+            
+            is_aen = fid in aen_targets
+            h = h_aen if is_aen else h_topk
+            auditor = auditor_aen if is_aen else auditor_topk
+            
+            f_acts = h[:, :, fid]
+            if f_acts.max() >= activation_threshold:
+                # Found one! Perform the causal audit immediately
+                # We reuse the tokens/activations we already have
+                b, s = torch.where(f_acts == f_acts.max())
+                b, s = b[0].item(), s[0].item()
+                if s >= tokens.shape[1] - 1: continue 
+
+                # Target calculation
+                target_token_id = tokens[b, s+1].item()
+                control_ids = torch.randint(0, streamer.tokenizer.vocab_size, (15,))
+
+                # Perform the patching (requires a small re-run for this specific batch)
+                def ablation_hook(act, hook):
+                    # act is [B, S, D]
+                    n = act.norm(p=2, dim=-1, keepdim=True) / (act.shape[-1]**0.5)
+                    xn = act / n
+                    # Use the sae's encode method to get current latents
+                    h_inner = auditor.sae.encode(xn)
+                    # Access the column of the decoder weight matrix
+                    # Shape of weight is [n_dim, d_dict], so we want weight[:, fid]
+                    W_dec_col = auditor.sae.decoder.weight[:, fid]
+                    # h_inner[:, :, fid] is [B, S]. We unsqueeze to [B, S, 1] for broadcasting.
+                    # W_dec_col is [n_dim].
+                    contrib = h_inner[:, :, fid].unsqueeze(-1) * W_dec_col
+                    
+                    # Subtract contribution and denormalize
+                    return (xn - contrib) * n
+
+                with torch.no_grad():
+                    clean_logits = auditor.model(tokens[b:b+1])
+                    patched_logits = auditor.model.run_with_hooks(
+                        tokens[b:b+1], fwd_hooks=[(auditor.hook_name, ablation_hook)]
+                    )
+                
+                clean_lp = F.log_softmax(clean_logits[0, s], dim=-1)
+                patch_lp = F.log_softmax(patched_logits[0, s], dim=-1)
+                
+                target_drop = (clean_lp[target_token_id] - patch_lp[target_token_id]).item()
+                avg_noise = torch.mean(torch.tensor([(clean_lp[cid] - patch_lp[cid]).abs().item() for cid in control_ids])).item()
+
+                reports[fid].append({
+                    "context": streamer.tokenizer.decode(tokens[b, max(0, s-10):s+1]),
+                    "target": streamer.tokenizer.decode([target_token_id]),
+                    "drop": target_drop,
+                    "noise": avg_noise,
+                    "ratio": target_drop / (avg_noise + 1e-6),
+                })
+                found_counts[fid] += 1
+                print(f"\n  [FOUND] FID #{fid} ({found_counts[fid]}/{num_examples_needed}) | Ratio: {reports[fid][-1]['ratio']:.1f}x")
+
+        pbar.update(1)
 
     with open("rebuttal_causal_results.txt", "w") as f:
-        f.write("CAUSAL SURGICALITY REPORT: AEN vs TOPK\n")
-        f.write("Surgicality Ratio = (Logit Drop on Target) / (Avg Logit Shift on Unrelated Tokens)\n")
-        f.write("Higher Ratio = More monosemantic causal lever.\n\n")
-
-        # Audit AEN
-        auditor_aen = CausalAudit(streamer, aen_model)
-        for fid in aen_targets:
-            f.write(f"\nAUDIT: AEN Specialized Feature #{fid}\n")
-            results = auditor_aen.run_surgical_audit(fid)
-            for r in results:
-                f.write(f"  Context: ...{r['context']}\n")
-                f.write(f"  Target: '{r['target']}' | Drop: {r['drop']:.2f} | Noise: {r['noise']:.4f} | RATIO: {r['ratio']:.1f}x\n")
-                f.write(f"  Top Preds Before: {r['before']}\n")
-                f.write(f"  Top Preds After:  {r['after']}\n\n")
-
-        # Audit TopK
-        auditor_topk = CausalAudit(streamer, topk_model)
-        for fid in topk_targets:
-            f.write(f"\nAUDIT: TopK Hub Feature #{fid}\n")
-            results = auditor_topk.run_surgical_audit(fid)
-            for r in results:
-                f.write(f"  Context: ...{r['context']}\n")
-                f.write(f"  Target: '{r['target']}' | Drop: {r['drop']:.2f} | Noise: {r['noise']:.4f} | RATIO: {r['ratio']:.1f}x\n")
-                f.write(f"  Top Preds Before: {r['before']}\n")
-                f.write(f"  Top Preds After:  {r['after']}\n\n")
+        for fid, entries in reports.items():
+            f.write(f"\nAUDIT REPORT: FID #{fid}\n")
+            for e in entries:
+                f.write(f"  Context: ...{e['context']}\n")
+                f.write(f"  Target: '{e['target']}' | Drop: {e['drop']:.2f} | Noise: {e['noise']:.4f} | RATIO: {e['ratio']:.1f}x\n\n")
 
 
 if __name__ == "__main__":
