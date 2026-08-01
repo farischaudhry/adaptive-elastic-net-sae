@@ -47,126 +47,128 @@ class TargetedCausalAuditor:
         self.device = sae.device
 
     @torch.no_grad()
-    def audit_triplet(self, fid, prompt, target_token_str):
-        # 0. Prep Tokens
-        tokens = self.tokenizer.encode(prompt, return_tensors="pt").to(self.device)
-        target_id = self.tokenizer.encode(target_token_str, add_special_tokens=False)[-1]
+    def audit_context(self, fid, context_str, target_str):
+        tokens = self.tokenizer.encode(context_str, return_tensors="pt").to(self.device)
         
-        # Use a list to "capture" the value from inside the hook
-        captured_val = []
-
-        # 1. Clean Pass
-        clean_logits = self.model(tokens)
-        clean_lp = F.log_softmax(clean_logits[0, -1], dim=-1)
-
-        # 2. Targeted Ablation Hook
-        def ablation_hook(act, hook):
-            sae_dtype = self.sae.dtype
-            # Normalize exactly as SAE expects
+        # 1. SCAN: Find where the feature fires in the full sentence
+        h_all = []
+        def capture_hook(act, hook):
             n = act.norm(p=2, dim=-1, keepdim=True) / (act.shape[-1]**0.5)
-            xn = (act / n).to(sae_dtype)
-            
-            # Center and Encode
+            xn = (act / n).to(self.sae.dtype)
             h = self.sae.encode(xn)
-            
-            # CAPTURE the activation value for the report
-            # (only the last token in the sequence)
-            val = h[0, -1, fid]
-            captured_val.append(val.item())
-            
-            # Decoder weight for FID
+            h_all.append(h[0].cpu()) 
+            return act
+
+        self.model.run_with_hooks(tokens, fwd_hooks=[(self.hook_name, capture_hook)])
+        f_acts = h_all[0][:, fid] 
+        
+        # Find peak position (must not be the very last token in the string)
+        if f_acts[:-1].max() < 0.2:
+            return {"error": f"Inactive (Max: {f_acts.max():.2f})"}
+        
+        pos = torch.argmax(f_acts[:-1]).item()
+        act_val = f_acts[pos].item()
+        
+        # Determine the Ground Truth token ID for the token AFTER the peak
+        target_id = tokens[0, pos+1].item()
+        actual_target_str = self.tokenizer.decode([target_id])
+
+        # 2. ABLATE at 'pos'
+        def ablation_hook(act, hook):
+            n = act.norm(p=2, dim=-1, keepdim=True) / (act.shape[-1]**0.5)
+            xn = (act / n).to(self.sae.dtype)
+            h_inner = self.sae.encode(xn)
             W_dec_col = self.sae.decoder.weight[:, fid]
-            contrib = val.unsqueeze(-1) * W_dec_col
-            
-            # Ablate: Remove this specific feature's signal
+            contrib = h_inner[0, pos, fid].unsqueeze(-1) * W_dec_col
             patched_act = xn.clone()
-            patched_act[0, -1, :] -= contrib
-            
-            # IMPORTANT: Return ONLY the tensor
+            patched_act[0, pos, :] -= contrib
             return (patched_act * n).to(act.dtype)
 
-        # 3. Patched Pass
-        # run_with_hooks returns ONLY the model logits (a Tensor)
-        patched_logits = self.model.run_with_hooks(
-            tokens, 
-            fwd_hooks=[(self.hook_name, ablation_hook)]
-        )
-        patch_lp = F.log_softmax(patched_logits[0, -1], dim=-1)
-
-        # 4. Quantitative Results
-        logit_drop = (clean_lp[target_id] - patch_lp[target_id]).item()
+        clean_logits = self.model(tokens)
+        patched_logits = self.model.run_with_hooks(tokens, fwd_hooks=[(self.hook_name, ablation_hook)])
         
-        # Measure Surgicality (Side effects on random vocabulary)
+        clean_lp = F.log_softmax(clean_logits[0, pos], dim=-1)
+        patch_lp = F.log_softmax(patched_logits[0, pos], dim=-1)
+
+        # 3. METRICS
+        logit_drop = (clean_lp[target_id] - patch_lp[target_id]).item()
         control_ids = torch.randint(0, self.tokenizer.vocab_size, (100,))
         noise_shifts = [(clean_lp[cid] - patch_lp[cid]).abs().item() for cid in control_ids]
         avg_noise = np.mean(noise_shifts)
 
         return {
-            "val": captured_val[0] if captured_val else 0.0,
+            "peak_token": self.tokenizer.decode([tokens[0, pos]]),
+            "target_token": actual_target_str,
+            "val": act_val,
             "drop": logit_drop,
             "noise": avg_noise,
             "ratio": logit_drop / (avg_noise + 1e-6)
         }
 
 # =================================================================
-# 3. DATA FROM QUALITATIVE AUDIT
+# 3. RUNTIME
 # =================================================================
 
-def run_targeted_causal_audit():
+def run_causal_audit():
     device = "cuda" if torch.cuda.is_available() else "cpu"
-
+    
     stream_cfg = LLMStreamConfig(
         tl_model_name="meta-llama/Llama-3.1-8B",
         hook_layer=16,
         device=device,
         model_dtype="bfloat16"
     )
-    # streamer used only for model/tokenizer access
     streamer = PythiaActivationStreamer(cfg=stream_cfg)
 
     aen_model = load_user_aen(k=32, device=device).eval()
     topk_model = load_user_topk(k=32, device=device).eval()
 
-    # --- Triplet format: (FID, "Context Prompt", "Expected Next Token") ---
-    # These are derived from your "bidirectional_features_contexts.txt"
-    aen_test_triplets = [
-        (578, "MAP ) ; %01766- 516", " 024"),   # UK Phone Code
-        (81,  "un collier blanc, je ne peux", " pas"), # French Negation
-        (972, "to try it for ourselves...kalo korang", " nak"), # Malay Noun
-        (663, "RecorderConfig.getMaxStorageSize();", " //") # Code Comment
+    # (FID, Full Context String, Target hint for logging)
+    aen_test_cases = [
+        (81,  "un collier blanc, je ne peux pas refuser. La brave", "refuser"),
+        (578, "MAP ) ; %01874- 611 880; www.robertos", "880"),
+        (972, "kalo korang nak try tgk..pg kat blog die", "try"),
+        (663, "RecorderConfig.getMaxStorageSize(); // Do something with max", "Do"),
+        (1081, "price); return this; } public APIRequestUpdate", "public"),
+        (1251, "empty line calls \\par (this one is already", "calls")
     ]
 
-    topk_test_triplets = [
-        (11, "Nathan Randall - Video", " Game"), # Compound Hub
-        (247, 'onboarding_completed": true,', ' "'), # Syntax Hub
-        (147, 'Feature Film $ 60 $48 Screenplay $', '50'), # Numeric Hub
-        (30, 'Michael, Jr., and Michael', ' ,') # Punctuation Hub
+    topk_test_cases = [
+        (0,   "its magnetic flux: i(t ) = W.", "="),
+        (11,  "Nathan Randall - Video Game Analyst Nathan Randall", "Analyst"),
+        (30,  "Michael, Jr., and Michael , Sr., also received", "Sr"),
+        (147, "Feature Film $ 60 $48 Screenplay $ 50 $", "50"),
+        (247, "onboarding_completed: true, \" profile_photo\": \"https", "profile")
     ]
 
     print("\n--- Starting TARGETED CAUSAL AUDIT ---")
     
-    with open("targeted_causal_results.txt", "w") as f:
-        f.write("TARGETED CAUSAL NECESSITY REPORT\n")
-        f.write("Measures 'Logit Drop' on the specific token found in qualitative audit.\n")
-        f.write("Surgicality Ratio = (Logit Drop) / (Avg Background Noise Shift)\n\n")
+    with open("targeted_causal_results_FINAL.txt", "w") as f:
+        f.write("TARGETED CAUSAL NECESSITY REPORT\n\n")
 
         # AUDIT AEN
         auditor_aen = TargetedCausalAuditor(streamer, aen_model)
         f.write("--- AEN SPECIALIZED FEATURES ---\n")
-        for fid, prompt, target in aen_test_triplets:
-            res = auditor_aen.audit_triplet(fid, prompt, target)
-            f.write(f"FID #{fid} | Context: ...{prompt} | Target: '{target}'\n")
+        for fid, context, hint in aen_test_cases:
+            res = auditor_aen.audit_context(fid, context, hint)
+            if "error" in res:
+                print(f"Skipping AEN #{fid}: {res['error']}")
+                continue
+            f.write(f"FID #{fid} | Peak Token: '{res['peak_token']}' | Target: '{res['target_token']}'\n")
             f.write(f"  Act Val: {res['val']:.2f} | Logit Drop: {res['drop']:.2f} | Noise: {res['noise']:.4f} | RATIO: {res['ratio']:.1f}x\n\n")
-            print(f"Audited AEN #{fid}: Ratio {res['ratio']:.1f}x")
+            print(f"Audited AEN #{fid} ('{res['peak_token']}'): Ratio {res['ratio']:.1f}x")
 
         # AUDIT TOPK
         auditor_topk = TargetedCausalAuditor(streamer, topk_model)
         f.write("\n--- TOPK HUB FEATURES ---\n")
-        for fid, prompt, target in topk_test_triplets:
-            res = auditor_topk.audit_triplet(fid, prompt, target)
-            f.write(f"FID #{fid} | Context: ...{prompt} | Target: '{target}'\n")
+        for fid, context, hint in topk_test_cases:
+            res = auditor_topk.audit_context(fid, context, hint)
+            if "error" in res:
+                print(f"Skipping TopK #{fid}: {res['error']}")
+                continue
+            f.write(f"FID #{fid} | Peak Token: '{res['peak_token']}' | Target: '{res['target_token']}'\n")
             f.write(f"  Act Val: {res['val']:.2f} | Logit Drop: {res['drop']:.2f} | Noise: {res['noise']:.4f} | RATIO: {res['ratio']:.1f}x\n\n")
-            print(f"Audited TopK #{fid}: Ratio {res['ratio']:.1f}x")
+            print(f"Audited TopK #{fid} ('{res['peak_token']}'): Ratio {res['ratio']:.1f}x")
 
 if __name__ == "__main__":
-    run_targeted_causal_audit()
+    run_causal_audit()
