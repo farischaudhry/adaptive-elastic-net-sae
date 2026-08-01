@@ -80,7 +80,7 @@ def collect_audit_data():
         except StopIteration: break
         
         captured = []
-        llm.run_with_hooks(tokens, fwd_hooks=[(streamer.hook_name, lambda a, h: captured.append(a))])
+        llm.run_with_hooks(tokens, fwd_hooks=[(streamer.hook_name, lambda a, hook: captured.append(a))])
         x = captured[0]
         norm = x.norm(p=2, dim=-1, keepdim=True) / (x.shape[-1]**0.5)
         x_sae = (x / norm).to(torch.bfloat16)
