@@ -140,7 +140,7 @@ class CausalAudit:
         return report
 
 
-def run_causal_comparison(num_examples_needed: int = 1, activation_threshold: float = 0.01):
+def run_causal_comparison(num_examples_needed: int = 3, activation_threshold: float = 1):
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     stream_cfg = LLMStreamConfig(
@@ -151,7 +151,7 @@ def run_causal_comparison(num_examples_needed: int = 1, activation_threshold: fl
         seq_len=128,
         lm_batch_size=8,
         streaming=True,
-        take_docs=20000,
+        take_docs=100000,
         device=device,
         activation_normalization="per_token_l2"
     )
