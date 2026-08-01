@@ -1,255 +1,186 @@
 import sys
-import random
-from pathlib import Path
-import shutil
-import numpy as np
 import torch
 import torch.nn.functional as F
+from pathlib import Path
 from tqdm import tqdm
+import numpy as np
 from huggingface_hub import hf_hub_download
 
+# Assuming current dir is /workspace/adaptive-elastic-sae/scripts/interp
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from adaptive_elastic_sae.saes.top_k import TopKSAE
 from adaptive_elastic_sae.saes.polyhedral import AdaptiveElasticNetSAE
-from adaptive_elastic_sae.data.llm_streamer import LLMStreamConfig, PythiaActivationStreamer, normalize_activations
+from adaptive_elastic_sae.data.llm_streamer import LLMStreamConfig, PythiaActivationStreamer
 
+# =================================================================
+# 1. LOADING UTILITIES
+# =================================================================
 
 def load_user_topk(k: int, device: str) -> TopKSAE:
     sweep_map = {32: "000", 64: "001", 128: "002"}
     filename = f"checkpoints/llama8b/topk/seed0/k{k}_llm-topk_baseline_sweep{sweep_map[k]}-seed0.pt"
-    print(f"Downloading Vanilla Top-K (k={k}) from HF.")
     file_path = hf_hub_download(repo_id="farischaudhry/adaptive-elastic-net-sae", filename=filename)
     checkpoint = torch.load(file_path, map_location=device, weights_only=False)
     model = TopKSAE(n_dim=4096, d_dict=131072, k=k, device=device, dtype=torch.bfloat16)
     model.load_state_dict(checkpoint["model_state_dict"])
     return model
 
-
 def load_user_aen(k: int, device: str) -> AdaptiveElasticNetSAE:
     lambda_map = {32: "0p002", 64: "0p001", 128: "0p00075"}
     filename = f"checkpoints/llama8b/regularization/seed0/adaptive_elastic_net/lambda1_{lambda_map[k]}_lambda2_0p0001_gamma_0p5.pt"
-    print(f"Downloading AEN-SAE (k={k}) from HF.")
     file_path = hf_hub_download(repo_id="farischaudhry/adaptive-elastic-net-sae", filename=filename)
     checkpoint = torch.load(file_path, map_location=device, weights_only=False)
     model = AdaptiveElasticNetSAE(n_dim=4096, d_dict=131072, device=device, dtype=torch.bfloat16)
     model.load_state_dict(checkpoint["model_state_dict"])
     return model
 
+# =================================================================
+# 2. CAUSAL STEERING SUITE
+# =================================================================
 
-@torch.no_grad()
-def get_tokens_and_activations(streamer: PythiaActivationStreamer):
-    tokens = streamer.next_token_batch() 
-    captured = None
-    def _capture_hook(act, hook):
-        nonlocal captured
-        captured = act
-    streamer.model.run_with_hooks(tokens, return_type=None, fwd_hooks=[(streamer.hook_name, _capture_hook)])
-    norm_x = normalize_activations(captured, mode=streamer.cfg.activation_normalization, d_model=captured.shape[-1])
-    return tokens, norm_x.to(dtype=torch.bfloat16)
-
-
-class CausalAudit:
+class CausalSteerer:
     def __init__(self, streamer, sae):
         self.streamer = streamer
-        self.tokenizer = streamer.tokenizer
         self.model = streamer.model
+        self.tokenizer = streamer.tokenizer
         self.sae = sae
         self.hook_name = streamer.hook_name
+        self.device = sae.device
+        
+        # Pre-compute logit directions (approximate linear effect of feature on vocabulary)
+        # Note: In Llama, unembedding is self.model.W_U
+        print("Pre-computing logit effects for all features...")
+        self.W_U = self.model.W_U # [d_model, n_vocab]
 
-    def get_top_tokens(self, logprobs, k=5):
-        vals, idxs = torch.topk(logprobs, k=k)
-        return [(self.tokenizer.decode([idx.item()]), f"{vals[i].item():.2f}") for i, idx in enumerate(idxs)]
-
+    def get_top_tokens_for_feature(self, fid, k=10):
+        """Identifies the 'Target Concept' of a feature by looking at its decoder weights."""
+        # weight[:, fid] is the [4096] direction in activation space
+        direction = self.sae.decoder.weight[:, fid] 
+        # Project into logit space
+        logits = direction @ self.W_U # [32000]
+        vals, idxs = torch.topk(logits, k=k)
+        return idxs.cpu().tolist()
 
     @torch.no_grad()
-    def run_surgical_audit(self, fid, num_examples=3, threshold=2.0):
+    def run_steering_audit(self, fid, steer_strength=30.0):
         """
-        Calculates:
-        1. Logit Drop on the correct token when feature is killed.
-        2. Surgicality Ratio: Impact on target vs. Impact on unrelated background.
+        Intervention: Injects feature FID into a neutral prompt.
+        Measures: How much the promoted tokens increase in probability.
         """
-        self.streamer.reset_stream()
-        found = 0
-        report = []
+        prompt = "The following content is related to"
+        tokens = self.tokenizer.encode(prompt, return_tensors="pt").to(self.device)
+        seq_len = tokens.shape[1]
+        
+        # 1. Get Target Tokens (Ground Truth of what the feature 'means')
+        target_token_ids = self.get_top_tokens_for_feature(fid, k=5)
+        target_token_strs = [self.tokenizer.decode([tid]) for tid in target_token_ids]
+        
+        # 2. Clean Forward Pass
+        clean_logits = self.model(tokens) # [1, seq, vocab]
+        clean_lp = F.log_softmax(clean_logits[0, -1], dim=-1)
 
-        while found < num_examples:
-            try:
-                tokens, x_norm = get_tokens_and_activations(self.streamer)
-            except StopIteration: break
+        # 3. Steering Hook
+        def steering_hook(act, hook):
+            # Injection happens at the very last token in the prompt
+            # act: [batch, seq, d_model]
+            sae_dtype = self.sae.dtype
             
-            with torch.no_grad():
-                _, h = self.sae(x_norm)
+            # Normalize to SAE scale
+            n = act.norm(p=2, dim=-1, keepdim=True) / (act.shape[-1]**0.5)
+            xn = (act / n).to(sae_dtype)
             
-            f_acts = h[:, :, fid]
-            if f_acts.max() < threshold: continue
+            # Get decoder weight column
+            W_dec_col = self.sae.decoder.weight[:, fid]
             
-            # Find strongest activation in batch
-            b, s = torch.where(f_acts == f_acts.max())
-            b, s = b[0].item(), s[0].item()
-            if s >= tokens.shape[1] - 1: continue 
+            # Injection: x_new = x + (strength * direction)
+            # Only apply to the last token position
+            xn[:, -1, :] += steer_strength * W_dec_col
+            
+            return (xn * n).to(act.dtype)
 
-            target_token_id = tokens[b, s+1].item()
-            target_str = self.tokenizer.decode([target_token_id])
-            
-            # Control: Pick random tokens to measure "background noise" shift
-            control_ids = torch.randint(0, self.tokenizer.vocab_size, (20,))
+        # 4. Patched Forward Pass
+        patched_logits = self.model.run_with_hooks(
+            tokens, fwd_hooks=[(self.hook_name, steering_hook)]
+        )
+        patch_lp = F.log_softmax(patched_logits[0, -1], dim=-1)
 
-            # --- ABLATION HOOK ---
-            def ablation_hook(act, hook):
-                # Re-normalize to SAE input scale
-                n = act.norm(p=2, dim=-1, keepdim=True) / (act.shape[-1]**0.5)
-                xn = act / n
-                _, h_inner = self.sae(xn)
-                
-                # Zero out FID
-                W_dec = self.sae.W_dec[fid]
-                contrib = h_inner[:, :, fid].unsqueeze(-1) * W_dec
-                return (xn - contrib) * n
+        # 5. Metrics
+        # Increase on intended target tokens
+        target_gains = [(patch_lp[tid] - clean_lp[tid]).item() for tid in target_token_ids]
+        avg_target_gain = np.mean(target_gains)
 
-            # Run patched model
-            with torch.no_grad():
-                clean_logits = self.model(tokens[b:b+1])
-                patched_logits = self.model.run_with_hooks(
-                    tokens[b:b+1], fwd_hooks=[(self.hook_name, ablation_hook)]
-                )
-            
-            clean_lp = F.log_softmax(clean_logits[0, s], dim=-1)
-            patch_lp = F.log_softmax(patched_logits[0, s], dim=-1)
-            
-            # Quantitative Metrics
-            target_drop = (clean_lp[target_token_id] - patch_lp[target_token_id]).item()
-            
-            control_drops = []
-            for cid in control_ids:
-                control_drops.append((clean_lp[cid] - patch_lp[cid]).abs().item())
-            avg_noise = np.mean(control_drops)
-            
-            # Qualitative Metrics
-            report.append({
-                "context": self.tokenizer.decode(tokens[b, max(0, s-10):s+1]),
-                "target": target_str,
-                "drop": target_drop,
-                "noise": avg_noise,
-                "ratio": target_drop / (avg_noise + 1e-6),
-                "before": self.get_top_tokens(clean_lp, k=3),
-                "after": self.get_top_tokens(patch_lp, k=3)
-            })
-            found += 1
-            
-        return report
+        # Surgicality: compare to random background shift
+        control_ids = torch.randint(0, self.tokenizer.vocab_size, (50,))
+        noise_shifts = [(patch_lp[cid] - clean_lp[cid]).abs().item() for cid in control_ids]
+        avg_noise = np.mean(noise_shifts)
 
+        # Qualitative: What is now top?
+        top_patched_vals, top_patched_idxs = torch.topk(patch_lp, k=5)
+        top_patched_strs = [self.tokenizer.decode([idx.item()]) for idx in top_patched_idxs]
 
-def run_causal_comparison(num_examples_needed: int = 3, activation_threshold: float = 1):
+        return {
+            "fid": fid,
+            "targets": target_token_strs,
+            "avg_gain": avg_target_gain,
+            "avg_noise": avg_noise,
+            "ratio": avg_target_gain / (avg_noise + 1e-6),
+            "new_top": top_patched_strs
+        }
+
+# =================================================================
+# 3. RUNTIME
+# =================================================================
+
+def run_rebuttal_audit():
     device = "cuda" if torch.cuda.is_available() else "cpu"
-
-    stream_cfg = LLMStreamConfig(
-        tl_model_name="meta-llama/Llama-3.1-8B",
-        hf_tokenizer_name="meta-llama/Llama-3.1-8B",
-        dataset_name="EleutherAI/the_pile_deduplicated",
-        hook_layer=16,
-        seq_len=128,
-        lm_batch_size=8,
-        streaming=True,
-        take_docs=100000,
-        device=device,
-        activation_normalization="per_token_l2"
-    )
-    streamer = PythiaActivationStreamer(cfg=stream_cfg)
-
+    
+    # Load Models
     aen_model = load_user_aen(k=32, device=device).eval()
     topk_model = load_user_topk(k=32, device=device).eval()
 
-    aen_targets = [578, 81, 972, 663]
-    topk_targets = [247, 147, 30, 11]
+    # Reuse your existing streamer for model/tokenizer access
+    stream_cfg = LLMStreamConfig(
+        tl_model_name="meta-llama/Llama-3.1-8B",
+        hook_layer=16,
+        device=device,
+        model_dtype="bfloat16"
+    )
+    # Mock streamer just to get the HookedTransformer instance
+    from adaptive_elastic_sae.data.llm_streamer import PythiaActivationStreamer
+    streamer = PythiaActivationStreamer(cfg=stream_cfg)
+
+    # TARGETS
+    aen_targets = [578, 81, 972, 663] # Rare monosemantic
+    topk_targets = [247, 147, 30, 11] # Hubs
     
-    # Trackers
-    found_counts = {fid: 0 for fid in (aen_targets + topk_targets)}
-    reports = {fid: [] for fid in (aen_targets + topk_targets)}
+    print("\n--- Starting FORCE STEERING (Causal Utility Audit) ---")
     
-    auditor_aen = CausalAudit(streamer, aen_model)
-    auditor_topk = CausalAudit(streamer, topk_model)
+    with open("rebuttal_steering_results.txt", "w") as f:
+        f.write("CAUSAL UTILITY REPORT: AEN vs TOPK (Force Steering)\n")
+        f.write("Target Gain: Avg logprob increase for the tokens the feature represents.\n")
+        f.write("Surgicality Ratio: Target Gain / Absolute shift in random background tokens.\n\n")
 
-    print(f"\n[Parallel Search] Looking for {aen_targets + topk_targets}")
-    print(f"Threshold: {activation_threshold} | Examples per feature: {num_examples_needed}")
+        # AEN
+        steerer_aen = CausalSteerer(streamer, aen_model)
+        f.write("--- AEN SPECIALIZED FEATURES ---\n")
+        for fid in aen_targets:
+            res = steerer_aen.run_steering_audit(fid)
+            f.write(f"FID #{fid} | Intended: {res['targets']}\n")
+            f.write(f"  Gain on Target: {res['avg_gain']:.2f} | Noise Shift: {res['avg_noise']:.4f} | RATIO: {res['ratio']:.1f}x\n")
+            f.write(f"  NEW TOP PREDICTIONS: {res['new_top']}\n\n")
+            print(f"Audited AEN #{fid}: Ratio {res['ratio']:.1f}x")
 
-    batch_idx = 0
-    pbar = tqdm(desc="Scanning Tokens")
-    
-    while any(count < num_examples_needed for count in found_counts.values()):
-        batch_idx += 1
-        try:
-            tokens, x_norm = get_tokens_and_activations(streamer)
-        except StopIteration: break
-        
-        # 1. Get activations for both models once
-        with torch.no_grad():
-            _, h_aen = aen_model(x_norm)
-            _, h_topk = topk_model(x_norm)
-        
-        # 2. Check all targets in this batch
-        for fid in (aen_targets + topk_targets):
-            if found_counts[fid] >= num_examples_needed:
-                continue
-            
-            is_aen = fid in aen_targets
-            h = h_aen if is_aen else h_topk
-            auditor = auditor_aen if is_aen else auditor_topk
-            
-            f_acts = h[:, :, fid]
-            if f_acts.max() >= activation_threshold:
-                # Found one! Perform the causal audit immediately
-                # We reuse the tokens/activations we already have
-                b, s = torch.where(f_acts == f_acts.max())
-                b, s = b[0].item(), s[0].item()
-                if s >= tokens.shape[1] - 1: continue 
-
-                # Target calculation
-                target_token_id = tokens[b, s+1].item()
-                control_ids = torch.randint(0, streamer.tokenizer.vocab_size, (15,))
-
-                # Perform the patching
-                def ablation_hook(act, hook):
-                    sae_dtype = auditor.sae.dtype 
-                    n = act.norm(p=2, dim=-1, keepdim=True) / (act.shape[-1]**0.5)
-                    xn = (act / n).to(sae_dtype)
-                    h_inner = auditor.sae.encode(xn)
-                    W_dec_col = auditor.sae.decoder.weight[:, fid]
-                    contrib = h_inner[:, :, fid].unsqueeze(-1) * W_dec_col
-                    patched_act = (xn - contrib) * n
-                    return patched_act.to(act.dtype)
-
-                with torch.no_grad():
-                    clean_logits = auditor.model(tokens[b:b+1])
-                    patched_logits = auditor.model.run_with_hooks(
-                        tokens[b:b+1], fwd_hooks=[(auditor.hook_name, ablation_hook)]
-                    )
-                
-                clean_lp = F.log_softmax(clean_logits[0, s], dim=-1)
-                patch_lp = F.log_softmax(patched_logits[0, s], dim=-1)
-                
-                target_drop = (clean_lp[target_token_id] - patch_lp[target_token_id]).item()
-                avg_noise = torch.mean(torch.tensor([(clean_lp[cid] - patch_lp[cid]).abs().item() for cid in control_ids])).item()
-
-                reports[fid].append({
-                    "context": streamer.tokenizer.decode(tokens[b, max(0, s-10):s+1]),
-                    "target": streamer.tokenizer.decode([target_token_id]),
-                    "drop": target_drop,
-                    "noise": avg_noise,
-                    "ratio": target_drop / (avg_noise + 1e-6),
-                })
-                found_counts[fid] += 1
-                print(f"\n  [FOUND] FID #{fid} ({found_counts[fid]}/{num_examples_needed}) | Ratio: {reports[fid][-1]['ratio']:.1f}x")
-
-        pbar.update(1)
-
-    with open("rebuttal_causal_results.txt", "w") as f:
-        for fid, entries in reports.items():
-            f.write(f"\nAUDIT REPORT: FID #{fid}\n")
-            for e in entries:
-                f.write(f"  Context: ...{e['context']}\n")
-                f.write(f"  Target: '{e['target']}' | Drop: {e['drop']:.2f} | Noise: {e['noise']:.4f} | RATIO: {e['ratio']:.1f}x\n\n")
+        # TopK
+        steerer_topk = CausalSteerer(streamer, topk_model)
+        f.write("\n--- TOPK HUB FEATURES ---\n")
+        for fid in topk_targets:
+            res = steerer_topk.run_steering_audit(fid)
+            f.write(f"FID #{fid} | Intended: {res['targets']}\n")
+            f.write(f"  Gain on Target: {res['avg_gain']:.2f} | Noise Shift: {res['avg_noise']:.4f} | RATIO: {res['ratio']:.1f}x\n")
+            f.write(f"  NEW TOP PREDICTIONS: {res['new_top']}\n\n")
+            print(f"Audited TopK #{fid}: Ratio {res['ratio']:.1f}x")
 
 
 if __name__ == "__main__":
-    run_causal_comparison()
+    run_rebuttal_audit()
