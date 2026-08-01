@@ -208,22 +208,16 @@ def run_causal_comparison(num_examples_needed: int = 1, activation_threshold: fl
                 target_token_id = tokens[b, s+1].item()
                 control_ids = torch.randint(0, streamer.tokenizer.vocab_size, (15,))
 
-                # Perform the patching (requires a small re-run for this specific batch)
+                # Perform the patching
                 def ablation_hook(act, hook):
-                    # act is [B, S, D]
+                    sae_dtype = auditor.sae.dtype 
                     n = act.norm(p=2, dim=-1, keepdim=True) / (act.shape[-1]**0.5)
-                    xn = act / n
-                    # Use the sae's encode method to get current latents
+                    xn = (act / n).to(sae_dtype)
                     h_inner = auditor.sae.encode(xn)
-                    # Access the column of the decoder weight matrix
-                    # Shape of weight is [n_dim, d_dict], so we want weight[:, fid]
                     W_dec_col = auditor.sae.decoder.weight[:, fid]
-                    # h_inner[:, :, fid] is [B, S]. We unsqueeze to [B, S, 1] for broadcasting.
-                    # W_dec_col is [n_dim].
                     contrib = h_inner[:, :, fid].unsqueeze(-1) * W_dec_col
-                    
-                    # Subtract contribution and denormalize
-                    return (xn - contrib) * n
+                    patched_act = (xn - contrib) * n
+                    return patched_act.to(act.dtype)
 
                 with torch.no_grad():
                     clean_logits = auditor.model(tokens[b:b+1])
