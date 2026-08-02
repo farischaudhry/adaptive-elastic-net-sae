@@ -45,7 +45,7 @@ def get_dla_tokens(sae, fid, W_U, tokenizer, k=10):
     return [tokenizer.decode([i.item()]) for i in idxs]
 
 
-def collect_audit_data(n_needed: int = 8, threshold: float = 1.0, max_batches: int = 50000) -> None:
+def collect_audit_data(first_f_features: int = 100, n_needed: int = 8, threshold: float = 1.0, max_batches: int = 50000) -> None:
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     # Load resources
@@ -57,8 +57,10 @@ def collect_audit_data(n_needed: int = 8, threshold: float = 1.0, max_batches: i
     W_U = llm.W_U  # Unembedding matrix [4096, 128256]
 
     # Target features
-    aen_fids = [81, 131, 543, 578, 634, 945, 587, 663, 899, 972, 1081, 1251]
-    topk_fids = [0, 11, 30, 129, 147, 196, 247, 751]
+    # aen_fids = [81, 131, 543, 578, 634, 945, 587, 663, 899, 972, 1081, 1251]
+    # topk_fids = [0, 11, 30, 129, 147, 196, 247, 751]
+    aen_fids = list(range(first_f_features))
+    topk_fids = list(range(first_f_features))
     all_targets = [("AEN", fid) for fid in aen_fids] + [("TopK", fid) for fid in topk_fids]
 
     stream_cfg = LLMStreamConfig(tl_model_name="meta-llama/Llama-3.1-8B", hook_layer=16, device=device, take_docs=20000)
@@ -137,7 +139,7 @@ def collect_audit_data(n_needed: int = 8, threshold: float = 1.0, max_batches: i
 
 
 if __name__ == "__main__":
-    collect_audit_data(n_needed=8, threshold=0.5, max_batches=50000)
+    collect_audit_data(first_f_features=100, n_needed=5, threshold=0.5, max_batches=50000)
 
 
 """
