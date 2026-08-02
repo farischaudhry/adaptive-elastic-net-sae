@@ -139,7 +139,7 @@ def collect_audit_data(first_f_features: int = 100, n_needed: int = 8, threshold
 
 
 if __name__ == "__main__":
-    collect_audit_data(first_f_features=100, n_needed=5, threshold=0.5, max_batches=50000)
+    collect_audit_data(first_f_features=100, n_needed=5, threshold=0.3, max_batches=50000)
 
 
 """
