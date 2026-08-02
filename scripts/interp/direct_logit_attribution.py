@@ -16,7 +16,7 @@ from adaptive_elastic_sae.data.llm_streamer import LLMStreamConfig, PythiaActiva
 def load_user_topk(k: int, device: str) -> TopKSAE:
     sweep_map = {32: "000", 64: "001", 128: "002"}
     filename = f"checkpoints/llama8b/topk/seed0/k{k}_llm-topk_baseline_sweep{sweep_map[k]}-seed0.pt"
-    print(f"Downloading Vanilla Top-K (k={k}) from HF...")
+    print(f"Downloading Vanilla Top-K (k={k}) from Hugging Face.")
     file_path = hf_hub_download(repo_id="farischaudhry/adaptive-elastic-net-sae", filename=filename)
     checkpoint = torch.load(file_path, map_location=device, weights_only=False)
     model = TopKSAE(n_dim=4096, d_dict=131072, k=k, device=device, dtype=torch.bfloat16)
@@ -27,7 +27,7 @@ def load_user_topk(k: int, device: str) -> TopKSAE:
 def load_user_aen(k: int, device: str) -> AdaptiveElasticNetSAE:
     lambda_map = {32: "0p002", 64: "0p001", 128: "0p00075"}
     filename = f"checkpoints/llama8b/regularization/seed0/adaptive_elastic_net/lambda1_{lambda_map[k]}_lambda2_0p0001_gamma_0p5.pt"
-    print(f"Downloading AEN-SAE (k={k}) from HF...")
+    print(f"Downloading AEN-SAE (k={k}, lambda1={lambda_map[k]}) from Hugging Face.")
     file_path = hf_hub_download(repo_id="farischaudhry/adaptive-elastic-net-sae", filename=filename)
     checkpoint = torch.load(file_path, map_location=device, weights_only=False)
     model = AdaptiveElasticNetSAE(n_dim=4096, d_dict=131072, device=device, dtype=torch.bfloat16)
@@ -56,12 +56,12 @@ def collect_audit_data(n_needed: int = 8, threshold: float = 1.0, max_batches: i
     llm = HookedTransformer.from_pretrained("meta-llama/Llama-3.1-8B", device=device, dtype=torch.bfloat16)
     W_U = llm.W_U  # Unembedding matrix [4096, 128256]
 
-    # Target features (20 each)
-    aen_fids = [578, 81, 972, 663, 131, 1081, 543, 945, 587, 899, 1251, 232, 1606, 925, 2087, 2310, 1069, 172, 126, 477]
-    topk_fids = [247, 147, 30, 11, 0, 129, 196, 25, 89, 208, 150, 3367, 751, 3848, 3884, 4089, 2147, 3444, 692, 724]
+    # Target features
+    aen_fids = [81, 131, 543, 578, 634, 945, 587, 663, 899, 972, 1081, 1251]
+    topk_fids = [0, 11, 30, 129, 147, 196, 247, 751]
     all_targets = [("AEN", fid) for fid in aen_fids] + [("TopK", fid) for fid in topk_fids]
 
-    stream_cfg = LLMStreamConfig(tl_model_name="meta-llama/Llama-3.1-8B", hook_layer=16, device=device, take_docs=5000)
+    stream_cfg = LLMStreamConfig(tl_model_name="meta-llama/Llama-3.1-8B", hook_layer=16, device=device, take_docs=20000)
     streamer = PythiaActivationStreamer(cfg=stream_cfg)
 
     # Containers
@@ -137,4 +137,25 @@ def collect_audit_data(n_needed: int = 8, threshold: float = 1.0, max_batches: i
 
 
 if __name__ == "__main__":
-    collect_audit_data(n_needed=3, threshold=1.0, max_batches=50000)
+    collect_audit_data(n_needed=8, threshold=0.5, max_batches=50000)
+
+
+"""
+You are a blinded expert researcher in AI Mechanistic Interpretability. I will provide a JSON list of internal model components (features). For each feature, I provide the "Inputs" (contexts where it activates) and the "Outputs" (tokens it predicts via Direct Logit Attribution).
+
+YOUR TASK:
+Identify the Core Concept for each feature.
+
+Rate the Monosemantic Purity on a graded scale of 0.0 to 10.0:
+10.0: Every input and output points to exactly one narrow, distinct concept.
+5.0: Entangles a few unrelated concepts.
+0.0: Total noise or entagles many unrelated concepts.
+
+Also provide a sentence to describe the core concept for each latent feature by looking at the input contexts. 
+Note: Llama-3.1-8B often tokenizes concepts into subword fragments. Please evaluate if these fragments cluster around a single semantic axis when combined with the provided context snippets.
+
+JSON DATA TO SCORE:
+[
+...
+]
+"""
