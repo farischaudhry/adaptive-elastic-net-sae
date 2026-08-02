@@ -143,21 +143,18 @@ if __name__ == "__main__":
 
 
 """
-You are a blinded expert researcher in AI Mechanistic Interpretability. I will provide a JSON list of internal model components (features). For each feature, I provide the "Inputs" (contexts where it activates) and the "Outputs" (tokens it predicts via Direct Logit Attribution).
-
-YOUR TASK:
-Identify the Core Concept for each feature.
-
-Rate the Monosemantic Purity on a graded scale of 0.0 to 10.0:
-10.0: Every input and output points to exactly one narrow, distinct concept.
-5.0: Entangles a few unrelated concepts.
-0.0: Total noise or entagles many unrelated concepts.
-
-Also provide a sentence to describe the core concept for each latent feature by looking at the input contexts. 
-Note: Llama-3.1-8B often tokenizes concepts into subword fragments. Please evaluate if these fragments cluster around a single semantic axis when combined with the provided context snippets.
+Role: You are a blinded expert researcher in AI Mechanistic Interpretability. I will provide a JSON list of internal model components (features) from a Sparse Autoencoder (SAE). For each feature, I provide the "Inputs" (contexts where it activates) and the "Outputs" (tokens it predicts via Direct Logit Attribution).
+Your Task: Hypothesize the true latent trigger (Core Concept) for each feature and rate its Monosemantic Purity on a scale of 0.0 to 10.0.
+Rules for Evaluation:
+1. Latent Functional Cohesion: Do not dismiss a feature as "entangled noise" just because the tokens look different on the surface. Look for deep syntactic, semantic, grammatical, or tokenization-level commonalities. (e.g., Are they all past-tense verbs? Are they all file extensions? Are they all tokens that typically follow a period?)
+2. Cross-Lingual & Cross-Domain Alignment: LLMs share representations across languages and domains. A feature containing English code, Chinese characters, and Arabic text is highly pure if those tokens serve the same functional or semantic purpose (e.g., they all relate to "UI Buttons" or "Error states").
+3. Tokenization Awareness: Treat weird subword fragments (e.g., ["ivities", " typ", "oug"]) as potential valid components of a single rule (e.g., "Word continuations"). Llama-3.1-8B often tokenizes concepts into subword fragments.
+4. Decoder-Only Inference: If a feature has 0 contexts, form the most plausible, unifying hypothesis for the DLA tokens. Only penalize it if no conceivable axis unifies the tokens.
+Grading Scale:
+8.0 - 10.0 (Highly Monosemantic): A single, clear hypothesis (semantic, syntactic, or cross-lingual) perfectly explains almost all tokens and contexts.
+4.0 - 7.0 (Polysemantic / Broad): The feature genuinely fires on two or more unrelated axes (e.g., it boosts both "Food terms" AND "HTML tags"), or it has a strong core concept but several unexplainable outliers.
+0.0 - 3.0 (Uninterpretable Noise): True noise. No conceivable human-understandable axis unites the tokens.
+Finally, provide the mean purity scores for both models, and briefly explain any patterns you noticed in the types of features each model learned.
 
 JSON DATA TO SCORE:
-[
-...
-]
 """

@@ -1,0 +1,1208 @@
+[
+  {
+    "aen_feature_utilization":  "22/100",
+    "topk_feature_utilization":  "5/100",
+    "aen_mean_score":  "6.34/10",
+    "topk_mean_score":  "6.14/10"
+  },
+  {
+    "model_type": "AEN",
+    "fid": 0,
+    "core_concept": "Latent continuations & 'Starter' fragments",
+    "purity_score": 5.0
+  },
+  {
+    "model_type": "AEN",
+    "fid": 1,
+    "core_concept": "Cross-lingual lexical/Greek fragments",
+    "purity_score": 4.0
+  },
+  {
+    "model_type": "AEN",
+    "fid": 2,
+    "core_concept": "Functional mappings & Gastronomy",
+    "purity_score": 4.5
+  },
+  {
+    "model_type": "AEN",
+    "fid": 3,
+    "core_concept": "Descriptive / Hyphenated Modifiers",
+    "purity_score": 7.5
+  },
+  {
+    "model_type": "AEN",
+    "fid": 4,
+    "core_concept": "Names & Software/Warehousing fragments",
+    "purity_score": 5.0
+  },
+  {
+    "model_type": "AEN",
+    "fid": 5,
+    "core_concept": "Uninterpretable Noise",
+    "purity_score": 2.5
+  },
+  {
+    "model_type": "AEN",
+    "fid": 6,
+    "core_concept": "Uninterpretable Noise",
+    "purity_score": 2.0
+  },
+  {
+    "model_type": "AEN",
+    "fid": 7,
+    "core_concept": "Latent Overlapping prefixes (cov, overl)",
+    "purity_score": 7.0
+  },
+  {
+    "model_type": "AEN",
+    "fid": 8,
+    "core_concept": "OOP Headers & 'otron' suffixes",
+    "purity_score": 8.0
+  },
+  {
+    "model_type": "AEN",
+    "fid": 9,
+    "core_concept": "Data Objects & Encoding Types",
+    "purity_score": 7.0
+  },
+  {
+    "model_type": "AEN",
+    "fid": 10,
+    "core_concept": "Code Syntax & Typing Declarations",
+    "purity_score": 8.5
+  },
+  {
+    "model_type": "AEN",
+    "fid": 11,
+    "core_concept": "Polysemantic: Phonetics & Ethnic prefixes",
+    "purity_score": 3.5
+  },
+  {
+    "model_type": "AEN",
+    "fid": 12,
+    "core_concept": "Personal Names / Avatars",
+    "purity_score": 4.5
+  },
+  {
+    "model_type": "AEN",
+    "fid": 13,
+    "core_concept": "Event Handlers / Object Dispatching",
+    "purity_score": 7.0
+  },
+  {
+    "model_type": "AEN",
+    "fid": 14,
+    "core_concept": "UI Layout & Elevation coordinates",
+    "purity_score": 6.5
+  },
+  {
+    "model_type": "AEN",
+    "fid": 15,
+    "core_concept": "Web Cookies & Z-Elevation",
+    "purity_score": 4.5
+  },
+  {
+    "model_type": "AEN",
+    "fid": 16,
+    "core_concept": "Uninterpretable Noise",
+    "purity_score": 3.0
+  },
+  {
+    "model_type": "AEN",
+    "fid": 17,
+    "core_concept": "Grammatical Noun/Verb Terminations (idue, idual)",
+    "purity_score": 8.0
+  },
+  {
+    "model_type": "AEN",
+    "fid": 18,
+    "core_concept": "The concept of 'Universal' across tokens",
+    "purity_score": 8.5
+  },
+  {
+    "model_type": "AEN",
+    "fid": 19,
+    "core_concept": "Uninterpretable Noise",
+    "purity_score": 3.0
+  },
+  {
+    "model_type": "AEN",
+    "fid": 20,
+    "core_concept": "Equivalence & Root structures",
+    "purity_score": 4.5
+  },
+  {
+    "model_type": "AEN",
+    "fid": 21,
+    "core_concept": "Aliases & Brand alignments",
+    "purity_score": 4.0
+  },
+  {
+    "model_type": "AEN",
+    "fid": 22,
+    "core_concept": "Type Definitions & Array formatting",
+    "purity_score": 8.0
+  },
+  {
+    "model_type": "AEN",
+    "fid": 23,
+    "core_concept": "Uninterpretable Noise",
+    "purity_score": 2.0
+  },
+  {
+    "model_type": "AEN",
+    "fid": 24,
+    "core_concept": "Market Tickers & Stream ends",
+    "purity_score": 7.0
+  },
+  {
+    "model_type": "AEN",
+    "fid": 25,
+    "core_concept": "Polysemantic: Problem Solving & Navigation",
+    "purity_score": 5.0
+  },
+  {
+    "model_type": "AEN",
+    "fid": 26,
+    "core_concept": "Tech Variables & System Time",
+    "purity_score": 7.0
+  },
+  {
+    "model_type": "AEN",
+    "fid": 27,
+    "core_concept": "Polysemantic Premise / French roots",
+    "purity_score": 4.0
+  },
+  {
+    "model_type": "AEN",
+    "fid": 28,
+    "core_concept": "Mapping / Pop Sci-Fi navigation",
+    "purity_score": 6.5
+  },
+  {
+    "model_type": "AEN",
+    "fid": 29,
+    "core_concept": "Syntax Callbacks & Contractions",
+    "purity_score": 5.5
+  },
+  {
+    "model_type": "AEN",
+    "fid": 30,
+    "core_concept": "Landlords & Network properties",
+    "purity_score": 4.5
+  },
+  {
+    "model_type": "AEN",
+    "fid": 31,
+    "core_concept": "Social Contexts / Follower states",
+    "purity_score": 7.5
+  },
+  {
+    "model_type": "AEN",
+    "fid": 32,
+    "core_concept": "Polysemantic Comb/Manual Actions",
+    "purity_score": 4.0
+  },
+  {
+    "model_type": "AEN",
+    "fid": 33,
+    "core_concept": "Functional Class Constructors (ctor)",
+    "purity_score": 5.0
+  },
+  {
+    "model_type": "AEN",
+    "fid": 34,
+    "core_concept": "Resultative Actions (Struck/Late)",
+    "purity_score": 8.5
+  },
+  {
+    "model_type": "AEN",
+    "fid": 35,
+    "core_concept": "Medical / Physical Inflammation",
+    "purity_score": 9.0
+  },
+  {
+    "model_type": "AEN",
+    "fid": 36,
+    "core_concept": "RSS Feeds & Web Tech Stacks",
+    "purity_score": 8.0
+  },
+  {
+    "model_type": "AEN",
+    "fid": 37,
+    "core_concept": "Latent UI Button alignments",
+    "purity_score": 7.5
+  },
+  {
+    "model_type": "AEN",
+    "fid": 38,
+    "core_concept": "Formatting Newlines & Transitions",
+    "purity_score": 7.5
+  },
+  {
+    "model_type": "AEN",
+    "fid": 39,
+    "core_concept": "Presentations & Document formats",
+    "purity_score": 7.5
+  },
+  {
+    "model_type": "AEN",
+    "fid": 40,
+    "core_concept": "Network channels & Premieres",
+    "purity_score": 5.0
+  },
+  {
+    "model_type": "AEN",
+    "fid": 41,
+    "core_concept": "Web Loading / Scroll UI Events",
+    "purity_score": 8.5
+  },
+  {
+    "model_type": "AEN",
+    "fid": 42,
+    "core_concept": "Uninterpretable Noise",
+    "purity_score": 3.0
+  },
+  {
+    "model_type": "AEN",
+    "fid": 43,
+    "core_concept": "Interpersonal Partners (Mate/Employee)",
+    "purity_score": 8.5
+  },
+  {
+    "model_type": "AEN",
+    "fid": 44,
+    "core_concept": "Transitional Prefixes (Trans/Pseudo/ful)",
+    "purity_score": 6.0
+  },
+  {
+    "model_type": "AEN",
+    "fid": 45,
+    "core_concept": "Frontend Logic Classes (activeClassName)",
+    "purity_score": 8.5
+  },
+  {
+    "model_type": "AEN",
+    "fid": 46,
+    "core_concept": "Navigation Controllers / Web Routing",
+    "purity_score": 8.5
+  },
+  {
+    "model_type": "AEN",
+    "fid": 47,
+    "core_concept": "Event Dispatching",
+    "purity_score": 9.5
+  },
+  {
+    "model_type": "AEN",
+    "fid": 48,
+    "core_concept": "Toolkit Configurations",
+    "purity_score": 5.5
+  },
+  {
+    "model_type": "AEN",
+    "fid": 49,
+    "core_concept": "External Contacts & Domains",
+    "purity_score": 5.0
+  },
+  {
+    "model_type": "AEN",
+    "fid": 50,
+    "core_concept": "Servlets & Audio Broadcasting",
+    "purity_score": 5.5
+  },
+  {
+    "model_type": "AEN",
+    "fid": 51,
+    "core_concept": "Audit & Multipart logic",
+    "purity_score": 7.5
+  },
+  {
+    "model_type": "AEN",
+    "fid": 52,
+    "core_concept": "Process Modifiers / Runnable tasks",
+    "purity_score": 7.0
+  },
+  {
+    "model_type": "AEN",
+    "fid": 53,
+    "core_concept": "Image UI & Web Galleries",
+    "purity_score": 8.0
+  },
+  {
+    "model_type": "AEN",
+    "fid": 54,
+    "core_concept": "Prediction / Polarity Metrics",
+    "purity_score": 4.5
+  },
+  {
+    "model_type": "AEN",
+    "fid": 55,
+    "core_concept": "React Routes & Notifications",
+    "purity_score": 5.5
+  },
+  {
+    "model_type": "AEN",
+    "fid": 56,
+    "core_concept": "ALL-CAPS System Builders/Headers",
+    "purity_score": 8.5
+  },
+  {
+    "model_type": "AEN",
+    "fid": 57,
+    "core_concept": "Uninterpretable Noise",
+    "purity_score": 3.0
+  },
+  {
+    "model_type": "AEN",
+    "fid": 58,
+    "core_concept": "Biochemical Activators / Max Limits",
+    "purity_score": 8.5
+  },
+  {
+    "model_type": "AEN",
+    "fid": 59,
+    "core_concept": "Business Subtypes & Tooltips",
+    "purity_score": 5.5
+  },
+  {
+    "model_type": "AEN",
+    "fid": 60,
+    "core_concept": "Geometrics (VertexArray) & Names",
+    "purity_score": 5.0
+  },
+  {
+    "model_type": "AEN",
+    "fid": 61,
+    "core_concept": "Conclusive Past-Tense Verbs (ended)",
+    "purity_score": 9.0
+  },
+  {
+    "model_type": "AEN",
+    "fid": 62,
+    "core_concept": "Uninterpretable Noise",
+    "purity_score": 3.5
+  },
+  {
+    "model_type": "AEN",
+    "fid": 63,
+    "core_concept": "Data Structures (HashTable) / Integration",
+    "purity_score": 7.5
+  },
+  {
+    "model_type": "AEN",
+    "fid": 64,
+    "core_concept": "Repositories & UI Ribbons",
+    "purity_score": 8.0
+  },
+  {
+    "model_type": "AEN",
+    "fid": 65,
+    "core_concept": "Business Requirements (Demand/Inventory)",
+    "purity_score": 8.5
+  },
+  {
+    "model_type": "AEN",
+    "fid": 66,
+    "core_concept": "System Platforms & APIs",
+    "purity_score": 8.5
+  },
+  {
+    "model_type": "AEN",
+    "fid": 67,
+    "core_concept": "Asynchronous Logic (-await) / UI Drawers",
+    "purity_score": 5.5
+  },
+  {
+    "model_type": "AEN",
+    "fid": 68,
+    "core_concept": "Object Instantiation (createObject, typed)",
+    "purity_score": 9.0
+  },
+  {
+    "model_type": "AEN",
+    "fid": 69,
+    "core_concept": "Web DOM Properties (pageX, setattr)",
+    "purity_score": 9.0
+  },
+  {
+    "model_type": "AEN",
+    "fid": 70,
+    "core_concept": "Legal Prepositions & Overrides",
+    "purity_score": 7.5
+  },
+  {
+    "model_type": "AEN",
+    "fid": 71,
+    "core_concept": "UI Background Layout Properties",
+    "purity_score": 8.5
+  },
+  {
+    "model_type": "AEN",
+    "fid": 72,
+    "core_concept": "JS Property Descriptors",
+    "purity_score": 8.5
+  },
+  {
+    "model_type": "AEN",
+    "fid": 73,
+    "core_concept": "Game Engine / Cloud Configs",
+    "purity_score": 7.5
+  },
+  {
+    "model_type": "AEN",
+    "fid": 74,
+    "core_concept": "Polysemantic Input Modules",
+    "purity_score": 5.5
+  },
+  {
+    "model_type": "AEN",
+    "fid": 75,
+    "core_concept": "Indefinite Articles ('An')",
+    "purity_score": 8.5
+  },
+  {
+    "model_type": "AEN",
+    "fid": 76,
+    "core_concept": "Uninterpretable Noise",
+    "purity_score": 3.5
+  },
+  {
+    "model_type": "AEN",
+    "fid": 77,
+    "core_concept": "UI Selection Variables (SelectedItem)",
+    "purity_score": 7.5
+  },
+  {
+    "model_type": "AEN",
+    "fid": 78,
+    "core_concept": "Media Controls (Pause, MIC)",
+    "purity_score": 8.0
+  },
+  {
+    "model_type": "AEN",
+    "fid": 79,
+    "core_concept": "Auxiliaries & Iterators (nextElement)",
+    "purity_score": 5.5
+  },
+  {
+    "model_type": "AEN",
+    "fid": 80,
+    "core_concept": "Uppercase States / Status Flags",
+    "purity_score": 6.0
+  },
+  {
+    "model_type": "AEN",
+    "fid": 81,
+    "core_concept": "Startup routines & 3D elements",
+    "purity_score": 4.5
+  },
+  {
+    "model_type": "AEN",
+    "fid": 82,
+    "core_concept": "Numerical Constants / Names",
+    "purity_score": 4.5
+  },
+  {
+    "model_type": "AEN",
+    "fid": 83,
+    "core_concept": "Scientific Suffixes (-omics)",
+    "purity_score": 6.0
+  },
+  {
+    "model_type": "AEN",
+    "fid": 84,
+    "core_concept": "Testing Suites & Exceptions (Java/C#)",
+    "purity_score": 8.5
+  },
+  {
+    "model_type": "AEN",
+    "fid": 85,
+    "core_concept": "Polysemantic Oceanic / Houses",
+    "purity_score": 4.5
+  },
+  {
+    "model_type": "AEN",
+    "fid": 86,
+    "core_concept": "Object Instantiation (CreateInstance)",
+    "purity_score": 8.0
+  },
+  {
+    "model_type": "AEN",
+    "fid": 87,
+    "core_concept": "UI Layout Configs (AutoSizeMode, dispatcher)",
+    "purity_score": 8.0
+  },
+  {
+    "model_type": "AEN",
+    "fid": 88,
+    "core_concept": "Logical Connectors (Likewise, FORGOT)",
+    "purity_score": 7.5
+  },
+  {
+    "model_type": "AEN",
+    "fid": 89,
+    "core_concept": "Runtime Environments",
+    "purity_score": 5.5
+  },
+  {
+    "model_type": "AEN",
+    "fid": 90,
+    "core_concept": "Polysemantic European Cities",
+    "purity_score": 4.0
+  },
+  {
+    "model_type": "AEN",
+    "fid": 91,
+    "core_concept": "TypeScript / React State (tsx, getField)",
+    "purity_score": 8.5
+  },
+  {
+    "model_type": "AEN",
+    "fid": 92,
+    "core_concept": "Linguistic Roots (Audio/Ear)",
+    "purity_score": 5.5
+  },
+  {
+    "model_type": "AEN",
+    "fid": 93,
+    "core_concept": "Boot / Semantic Logic",
+    "purity_score": 8.0
+  },
+  {
+    "model_type": "AEN",
+    "fid": 94,
+    "core_concept": "Controllers & System Changes",
+    "purity_score": 5.5
+  },
+  {
+    "model_type": "AEN",
+    "fid": 95,
+    "core_concept": "Manifests & Anonymous Entities",
+    "purity_score": 5.5
+  },
+  {
+    "model_type": "AEN",
+    "fid": 96,
+    "core_concept": "App Exits & UI Placements",
+    "purity_score": 5.0
+  },
+  {
+    "model_type": "AEN",
+    "fid": 97,
+    "core_concept": "System Additions / Requests",
+    "purity_score": 7.5
+  },
+  {
+    "model_type": "AEN",
+    "fid": 98,
+    "core_concept": "Message Objects & Suffixes",
+    "purity_score": 5.5
+  },
+  {
+    "model_type": "AEN",
+    "fid": 99,
+    "core_concept": "Element Widths & Sequences",
+    "purity_score": 5.5
+  },
+  {
+    "model_type": "TopK",
+    "fid": 0,
+    "core_concept": "Conditional Auxiliaries (can/elseif)",
+    "purity_score": 8.0
+  },
+  {
+    "model_type": "TopK",
+    "fid": 1,
+    "core_concept": "Uninterpretable Noise",
+    "purity_score": 3.0
+  },
+  {
+    "model_type": "TopK",
+    "fid": 2,
+    "core_concept": "Uninterpretable Noise",
+    "purity_score": 2.0
+  },
+  {
+    "model_type": "TopK",
+    "fid": 3,
+    "core_concept": "Narrative / Mystery Contexts",
+    "purity_score": 7.0
+  },
+  {
+    "model_type": "TopK",
+    "fid": 4,
+    "core_concept": "Uninterpretable Noise",
+    "purity_score": 3.5
+  },
+  {
+    "model_type": "TopK",
+    "fid": 5,
+    "core_concept": "Uninterpretable Noise",
+    "purity_score": 2.5
+  },
+  {
+    "model_type": "TopK",
+    "fid": 6,
+    "core_concept": "Uninterpretable Noise",
+    "purity_score": 2.0
+  },
+  {
+    "model_type": "TopK",
+    "fid": 7,
+    "core_concept": "Mental/Data Representations [HUB]",
+    "purity_score": 9.0
+  },
+  {
+    "model_type": "TopK",
+    "fid": 8,
+    "core_concept": "Uninterpretable Noise",
+    "purity_score": 3.0
+  },
+  {
+    "model_type": "TopK",
+    "fid": 9,
+    "core_concept": "Polysemantic Labor (pull, work)",
+    "purity_score": 4.0
+  },
+  {
+    "model_type": "TopK",
+    "fid": 10,
+    "core_concept": "XML Root Elements / Solitude",
+    "purity_score": 8.0
+  },
+  {
+    "model_type": "TopK",
+    "fid": 11,
+    "core_concept": "Polysemantic Pragmatic Markers",
+    "purity_score": 4.0
+  },
+  {
+    "model_type": "TopK",
+    "fid": 12,
+    "core_concept": "Polysemantic Sports / Availability",
+    "purity_score": 4.0
+  },
+  {
+    "model_type": "TopK",
+    "fid": 13,
+    "core_concept": "Uninterpretable Noise",
+    "purity_score": 3.0
+  },
+  {
+    "model_type": "TopK",
+    "fid": 14,
+    "core_concept": "Uninterpretable Noise",
+    "purity_score": 2.0
+  },
+  {
+    "model_type": "TopK",
+    "fid": 15,
+    "core_concept": "Uninterpretable Noise",
+    "purity_score": 3.5
+  },
+  {
+    "model_type": "TopK",
+    "fid": 16,
+    "core_concept": "Systemic / Political Contexts",
+    "purity_score": 5.5
+  },
+  {
+    "model_type": "TopK",
+    "fid": 17,
+    "core_concept": "Code Attributes (partial, inline) [HUB]",
+    "purity_score": 8.5
+  },
+  {
+    "model_type": "TopK",
+    "fid": 18,
+    "core_concept": "Server Errors & Vendor Paths [HUB]",
+    "purity_score": 9.0
+  },
+  {
+    "model_type": "TopK",
+    "fid": 19,
+    "core_concept": "Uninterpretable Noise",
+    "purity_score": 3.0
+  },
+  {
+    "model_type": "TopK",
+    "fid": 20,
+    "core_concept": "Assignments & Allocations [HUB]",
+    "purity_score": 8.5
+  },
+  {
+    "model_type": "TopK",
+    "fid": 21,
+    "core_concept": "Security & Cryptography",
+    "purity_score": 8.0
+  },
+  {
+    "model_type": "TopK",
+    "fid": 22,
+    "core_concept": "Web Forms / HTTP Headers",
+    "purity_score": 8.0
+  },
+  {
+    "model_type": "TopK",
+    "fid": 23,
+    "core_concept": "Execution & Performance Tuning [HUB]",
+    "purity_score": 9.0
+  },
+  {
+    "model_type": "TopK",
+    "fid": 24,
+    "core_concept": "String Manipulation (tolower, toupper) [HUB]",
+    "purity_score": 9.5
+  },
+  {
+    "model_type": "TopK",
+    "fid": 25,
+    "core_concept": "Dispatching / Code Artifacts [HUB]",
+    "purity_score": 9.0
+  },
+  {
+    "model_type": "TopK",
+    "fid": 26,
+    "core_concept": "Uninterpretable Noise",
+    "purity_score": 3.5
+  },
+  {
+    "model_type": "TopK",
+    "fid": 27,
+    "core_concept": "Uninterpretable Noise",
+    "purity_score": 2.0
+  },
+  {
+    "model_type": "TopK",
+    "fid": 28,
+    "core_concept": "Manuals / ITE Strings",
+    "purity_score": 6.5
+  },
+  {
+    "model_type": "TopK",
+    "fid": 29,
+    "core_concept": "Uninterpretable Noise",
+    "purity_score": 3.5
+  },
+  {
+    "model_type": "TopK",
+    "fid": 30,
+    "core_concept": "Shared Preferences / State Variables [HUB]",
+    "purity_score": 8.5
+  },
+  {
+    "model_type": "TopK",
+    "fid": 31,
+    "core_concept": "Polysemantic UI State / Fax",
+    "purity_score": 4.5
+  },
+  {
+    "model_type": "TopK",
+    "fid": 32,
+    "core_concept": "Main Windows / Memory Heaps [HUB]",
+    "purity_score": 8.5
+  },
+  {
+    "model_type": "TopK",
+    "fid": 33,
+    "core_concept": "Uninterpretable Noise",
+    "purity_score": 3.0
+  },
+  {
+    "model_type": "TopK",
+    "fid": 34,
+    "core_concept": "Object Destruction / UI Binding",
+    "purity_score": 8.0
+  },
+  {
+    "model_type": "TopK",
+    "fid": 35,
+    "core_concept": "Uninterpretable Noise",
+    "purity_score": 2.0
+  },
+  {
+    "model_type": "TopK",
+    "fid": 36,
+    "core_concept": "Builders / ISOStrings",
+    "purity_score": 7.5
+  },
+  {
+    "model_type": "TopK",
+    "fid": 37,
+    "core_concept": "Bundlers / IDE Configs (.idea)",
+    "purity_score": 7.5
+  },
+  {
+    "model_type": "TopK",
+    "fid": 38,
+    "core_concept": "Polysemantic Mobile Paths / Distances",
+    "purity_score": 4.0
+  },
+  {
+    "model_type": "TopK",
+    "fid": 39,
+    "core_concept": "Polysemantic Premises / Museums",
+    "purity_score": 4.5
+  },
+  {
+    "model_type": "TopK",
+    "fid": 40,
+    "core_concept": "UI Routing & Flash Messages [HUB]",
+    "purity_score": 8.5
+  },
+  {
+    "model_type": "TopK",
+    "fid": 41,
+    "core_concept": "Uninterpretable Noise",
+    "purity_score": 2.5
+  },
+  {
+    "model_type": "TopK",
+    "fid": 42,
+    "core_concept": "Static Installers / Build TXT",
+    "purity_score": 8.5
+  },
+  {
+    "model_type": "TopK",
+    "fid": 43,
+    "core_concept": "Alphabetic Sequences (ABCDEFGHI) & URNs",
+    "purity_score": 8.5
+  },
+  {
+    "model_type": "TopK",
+    "fid": 44,
+    "core_concept": "Component Interfaces (queryInterface)",
+    "purity_score": 8.5
+  },
+  {
+    "model_type": "TopK",
+    "fid": 45,
+    "core_concept": "Root Directories / Mobile Gestures",
+    "purity_score": 8.5
+  },
+  {
+    "model_type": "TopK",
+    "fid": 46,
+    "core_concept": "System Administration / User Roles [HUB]",
+    "purity_score": 9.5
+  },
+  {
+    "model_type": "TopK",
+    "fid": 47,
+    "core_concept": "File Modes & Compression Types (.xz)",
+    "purity_score": 6.5
+  },
+  {
+    "model_type": "TopK",
+    "fid": 48,
+    "core_concept": "Archiving / Infragistics",
+    "purity_score": 7.0
+  },
+  {
+    "model_type": "TopK",
+    "fid": 49,
+    "core_concept": "Polysemantic Apps / Esoteric tokens",
+    "purity_score": 4.0
+  },
+  {
+    "model_type": "TopK",
+    "fid": 50,
+    "core_concept": "Fleet Management & UI Decoration",
+    "purity_score": 8.5
+  },
+  {
+    "model_type": "TopK",
+    "fid": 51,
+    "core_concept": "Polysemantic Threading",
+    "purity_score": 4.5
+  },
+  {
+    "model_type": "TopK",
+    "fid": 52,
+    "core_concept": "Polysemantic Size / Density",
+    "purity_score": 4.5
+  },
+  {
+    "model_type": "TopK",
+    "fid": 53,
+    "core_concept": "UI Layout Margins",
+    "purity_score": 8.0
+  },
+  {
+    "model_type": "TopK",
+    "fid": 54,
+    "core_concept": "Uninterpretable Noise",
+    "purity_score": 2.5
+  },
+  {
+    "model_type": "TopK",
+    "fid": 55,
+    "core_concept": "Polysemantic Media / I/O Manipulation",
+    "purity_score": 4.5
+  },
+  {
+    "model_type": "TopK",
+    "fid": 56,
+    "core_concept": "Uninterpretable Noise",
+    "purity_score": 3.5
+  },
+  {
+    "model_type": "TopK",
+    "fid": 57,
+    "core_concept": "Uniform Variables / PIO Code",
+    "purity_score": 5.0
+  },
+  {
+    "model_type": "TopK",
+    "fid": 58,
+    "core_concept": "Prototypes (TOTYPE) & Cancellations",
+    "purity_score": 6.0
+  },
+  {
+    "model_type": "TopK",
+    "fid": 59,
+    "core_concept": "Component Creation (createClass) & SPDX",
+    "purity_score": 8.5
+  },
+  {
+    "model_type": "TopK",
+    "fid": 60,
+    "core_concept": "UI Toast Notifications",
+    "purity_score": 8.5
+  },
+  {
+    "model_type": "TopK",
+    "fid": 61,
+    "core_concept": "Polysemantic Math (pow) / Artillery",
+    "purity_score": 5.0
+  },
+  {
+    "model_type": "TopK",
+    "fid": 62,
+    "core_concept": "Event Handlers (andler)",
+    "purity_score": 5.0
+  },
+  {
+    "model_type": "TopK",
+    "fid": 63,
+    "core_concept": "Polysemantic Limits",
+    "purity_score": 4.0
+  },
+  {
+    "model_type": "TopK",
+    "fid": 64,
+    "core_concept": "String Piping & Code Tokens (fromString)",
+    "purity_score": 8.5
+  },
+  {
+    "model_type": "TopK",
+    "fid": 65,
+    "core_concept": "Ad Interstitials / Framework Components",
+    "purity_score": 7.5
+  },
+  {
+    "model_type": "TopK",
+    "fid": 66,
+    "core_concept": "Character Codes & Criterions",
+    "purity_score": 8.5
+  },
+  {
+    "model_type": "TopK",
+    "fid": 67,
+    "core_concept": "Uninterpretable Noise",
+    "purity_score": 2.0
+  },
+  {
+    "model_type": "TopK",
+    "fid": 68,
+    "core_concept": "Python Objects (PyObject)",
+    "purity_score": 6.5
+  },
+  {
+    "model_type": "TopK",
+    "fid": 69,
+    "core_concept": "MultiMediaCards (MMC) & Sys Selection",
+    "purity_score": 8.5
+  },
+  {
+    "model_type": "TopK",
+    "fid": 70,
+    "core_concept": "Feed Schemas & Data Templates [HUB]",
+    "purity_score": 9.0
+  },
+  {
+    "model_type": "TopK",
+    "fid": 71,
+    "core_concept": "C++ Header Guards (ifndef) & OpenGL",
+    "purity_score": 6.5
+  },
+  {
+    "model_type": "TopK",
+    "fid": 72,
+    "core_concept": "Assertions / System Alarms",
+    "purity_score": 8.5
+  },
+  {
+    "model_type": "TopK",
+    "fid": 73,
+    "core_concept": "Uninterpretable Noise",
+    "purity_score": 3.5
+  },
+  {
+    "model_type": "TopK",
+    "fid": 74,
+    "core_concept": "Data Streams / Ellipses & Affero",
+    "purity_score": 8.0
+  },
+  {
+    "model_type": "TopK",
+    "fid": 75,
+    "core_concept": "Uninterpretable Noise",
+    "purity_score": 3.5
+  },
+  {
+    "model_type": "TopK",
+    "fid": 76,
+    "core_concept": "Downtown Locations / Margins",
+    "purity_score": 8.5
+  },
+  {
+    "model_type": "TopK",
+    "fid": 77,
+    "core_concept": "UI Toggles & Ulong Data Types",
+    "purity_score": 8.0
+  },
+  {
+    "model_type": "TopK",
+    "fid": 78,
+    "core_concept": "Visual Inspectors & Video Sightings",
+    "purity_score": 5.5
+  },
+  {
+    "model_type": "TopK",
+    "fid": 79,
+    "core_concept": "Web Observables (.observable)",
+    "purity_score": 8.5
+  },
+  {
+    "model_type": "TopK",
+    "fid": 80,
+    "core_concept": "Uninterpretable Noise",
+    "purity_score": 2.0
+  },
+  {
+    "model_type": "TopK",
+    "fid": 81,
+    "core_concept": "Polysemantic Names & Suffixes",
+    "purity_score": 4.0
+  },
+  {
+    "model_type": "TopK",
+    "fid": 82,
+    "core_concept": "Upload Parameters & Metrics",
+    "purity_score": 6.5
+  },
+  {
+    "model_type": "TopK",
+    "fid": 83,
+    "core_concept": "Cron Jobs & Exceptions",
+    "purity_score": 7.5
+  },
+  {
+    "model_type": "TopK",
+    "fid": 84,
+    "core_concept": "DOM Node Traversals (.nodeName) [HUB]",
+    "purity_score": 9.0
+  },
+  {
+    "model_type": "TopK",
+    "fid": 85,
+    "core_concept": "Window States & Opcodes",
+    "purity_score": 8.5
+  },
+  {
+    "model_type": "TopK",
+    "fid": 86,
+    "core_concept": "Polysemantic Journalism",
+    "purity_score": 4.5
+  },
+  {
+    "model_type": "TopK",
+    "fid": 87,
+    "core_concept": "Async Operations (awaiter) & Profiling",
+    "purity_score": 8.0
+  },
+  {
+    "model_type": "TopK",
+    "fid": 88,
+    "core_concept": "Text Directionality (LTR)",
+    "purity_score": 5.5
+  },
+  {
+    "model_type": "TopK",
+    "fid": 89,
+    "core_concept": "UI Checkboxes & Packages",
+    "purity_score": 8.5
+  },
+  {
+    "model_type": "TopK",
+    "fid": 90,
+    "core_concept": "Vaadin Framework & System Calls",
+    "purity_score": 8.5
+  },
+  {
+    "model_type": "TopK",
+    "fid": 91,
+    "core_concept": "Startup Scripts & Satellites",
+    "purity_score": 8.5
+  },
+  {
+    "model_type": "TopK",
+    "fid": 92,
+    "core_concept": "Uninterpretable Noise",
+    "purity_score": 3.5
+  },
+  {
+    "model_type": "TopK",
+    "fid": 93,
+    "core_concept": "System Requirements & Settings",
+    "purity_score": 6.5
+  },
+  {
+    "model_type": "TopK",
+    "fid": 94,
+    "core_concept": "Polysemantic Equivalences",
+    "purity_score": 4.5
+  },
+  {
+    "model_type": "TopK",
+    "fid": 95,
+    "core_concept": "Uninterpretable Noise",
+    "purity_score": 3.0
+  },
+  {
+    "model_type": "TopK",
+    "fid": 96,
+    "core_concept": "Uninterpretable Noise",
+    "purity_score": 3.0
+  },
+  {
+    "model_type": "TopK",
+    "fid": 97,
+    "core_concept": "Structural Whitespace / Formatting [HUB]",
+    "purity_score": 9.0
+  },
+  {
+    "model_type": "TopK",
+    "fid": 98,
+    "core_concept": "Document Top/EOF Logic [HUB]",
+    "purity_score": 8.5
+  },
+  {
+    "model_type": "TopK",
+    "fid": 99,
+    "core_concept": "Lifecycle DOM Events (readystatechange) [HUB]",
+    "purity_score": 9.0
+  }
+]
